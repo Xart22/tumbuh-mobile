@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../data/models/cart_item.dart';
+import '../../../data/models/customer_summary.dart';
 import '../../../data/models/pos_product.dart';
 import '../../../data/models/printer_config.dart';
 import '../../../data/remote/pos_repository.dart';
@@ -18,7 +19,9 @@ class PosState extends Equatable {
   final String tableNumber;
   final String orderType; // 'Dine-in' or 'Takeaway'
   final String customerName;
+  final String? customerId;
   final bool isMember;
+  final List<CustomerSummary> customerResults;
   final int voucherDiscount;
   final List<ParkedBill> parkedBills;
   final OrderTotals totals;
@@ -37,7 +40,9 @@ class PosState extends Equatable {
     this.tableNumber = '04',
     this.orderType = 'Dine-in',
     this.customerName = 'Dian P.',
+    this.customerId,
     this.isMember = true,
+    this.customerResults = const [],
     this.voucherDiscount = 10000,
     this.parkedBills = const [],
     this.totals = OrderTotals.zero,
@@ -65,7 +70,10 @@ class PosState extends Equatable {
     String? tableNumber,
     String? orderType,
     String? customerName,
+    String? customerId,
+    bool clearCustomer = false,
     bool? isMember,
+    List<CustomerSummary>? customerResults,
     int? voucherDiscount,
     List<ParkedBill>? parkedBills,
     OrderTotals? totals,
@@ -84,7 +92,9 @@ class PosState extends Equatable {
       tableNumber: tableNumber ?? this.tableNumber,
       orderType: orderType ?? this.orderType,
       customerName: customerName ?? this.customerName,
+      customerId: clearCustomer ? null : (customerId ?? this.customerId),
       isMember: isMember ?? this.isMember,
+      customerResults: customerResults ?? this.customerResults,
       voucherDiscount: voucherDiscount ?? this.voucherDiscount,
       parkedBills: parkedBills ?? this.parkedBills,
       totals: totals ?? this.totals,
@@ -106,7 +116,9 @@ class PosState extends Equatable {
     tableNumber,
     orderType,
     customerName,
+    customerId,
     isMember,
+    customerResults,
     voucherDiscount,
     parkedBills,
     totals,

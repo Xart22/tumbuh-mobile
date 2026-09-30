@@ -12,6 +12,7 @@ import '../../core/security/secure_storage_service.dart';
 import '../local/db/app_database.dart';
 import '../local/outbox/outbox_dao.dart';
 import '../models/cart_item.dart';
+import '../models/customer_summary.dart';
 import '../models/outlet_pricing.dart';
 import '../models/payment_model.dart';
 import '../models/pos_product.dart';
@@ -445,6 +446,25 @@ class PosRepository {
     return cached.isNotEmpty ? cached : defaultProducts;
   }
 
+  /// Searches CRM customers. Backend: `GET /v1/customers?search=`.
+  Future<List<CustomerSummary>> searchCustomers(String query) async {
+    try {
+      final res = await apiClient.getWithRetry(
+        '/v1/customers',
+        queryParameters: {
+          'limit': 20,
+          if (query.trim().isNotEmpty) 'search': query.trim(),
+        },
+      );
+      final items = (res.data as Map<String, dynamic>)['items'] as List<dynamic>;
+      return items
+          .map((e) => CustomerSummary.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Lookup product by Barcode / SKU: backend exact match -> local catalog.
   Future<PosProduct?> lookupByCode(String code) async {
     if (fetchFromNetwork) {
@@ -809,6 +829,7 @@ class PosRepository {
     required List<CartItem> items,
     required OrderTotals totals,
     required OrderPaymentDetails payment,
+    String? customerId,
     PrinterDeviceConfig? printerConfig,
   }) async {
     final orderId = 'TB-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
@@ -821,12 +842,14 @@ class PosRepository {
       'items': _orderItemsPayload(items),
       if (totals.totalDiscount > 0) 'discountAmount': totals.totalDiscount,
       if (totals.totalDiscount > 0) 'discountName': 'Diskon',
+      'customerId': ?customerId,
     };
 
     final tableId = await _resolveDineInTableId(tableNumber, orderType);
     if (tableId != null) payload['tableId'] = tableId;
 
     bool isOnlineSuccess = false;
+    String? serverOrderId;
     try {
       final response = await apiClient.dio.post(
         '/v1/orders',
@@ -838,7 +861,8 @@ class PosRepository {
         // Order exists server-side now; record the payment against its id.
         final created = response.data;
         if (created is Map && created['id'] is String) {
-          await _createPayment(created['id'] as String, payment);
+          serverOrderId = created['id'] as String;
+          await _createPayment(serverOrderId, payment);
         }
       }
     } catch (e) {
@@ -881,6 +905,7 @@ class PosRepository {
 
     return {
       'orderId': orderId,
+      'serverOrderId': serverOrderId,
       'isOnline': isOnlineSuccess,
       'idempotencyKey': idempotencyKey,
       'grandTotal': totals.grandTotal,

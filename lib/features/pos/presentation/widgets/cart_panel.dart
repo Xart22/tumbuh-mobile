@@ -18,6 +18,7 @@ class CartPanel extends StatelessWidget {
   final Function(String lineId) onRemoveItem;
   final VoidCallback onParkBill;
   final VoidCallback onOpenPayment;
+  final VoidCallback? onSelectCustomer;
   final Function(PosPaymentMethod method)? onQuickPay;
 
   const CartPanel({
@@ -33,6 +34,7 @@ class CartPanel extends StatelessWidget {
     required this.onRemoveItem,
     required this.onParkBill,
     required this.onOpenPayment,
+    this.onSelectCustomer,
     this.onQuickPay,
   });
 
@@ -148,31 +150,34 @@ class CartPanel extends StatelessWidget {
         children: [
           // Member pill
           Expanded(
-            child: Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: LpColors.surfaceCard,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: LpColors.borderDark),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.stars_rounded, size: 16, color: LpColors.accentAmber),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      'Member: $customerName ⭐',
-                      overflow: TextOverflow.ellipsis,
-                      style: LpTypography.bodySm.copyWith(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+            child: GestureDetector(
+              onTap: onSelectCustomer,
+              child: Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: LpColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: LpColors.borderDark),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.stars_rounded, size: 16, color: LpColors.accentAmber),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Member: $customerName ⭐',
+                        overflow: TextOverflow.ellipsis,
+                        style: LpTypography.bodySm.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

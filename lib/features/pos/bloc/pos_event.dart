@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../data/models/cart_item.dart';
+import '../../../data/models/customer_summary.dart';
 import '../../../data/models/payment_model.dart';
 import '../../../data/models/printer_config.dart';
 
@@ -96,6 +97,26 @@ class PosSetCustomer extends PosEvent {
 
   @override
   List<Object?> get props => [customerName, isMember, voucherDiscount];
+}
+
+class PosSearchCustomers extends PosEvent {
+  final String query;
+  const PosSearchCustomers(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
+class PosSelectCustomer extends PosEvent {
+  final CustomerSummary customer;
+  const PosSelectCustomer(this.customer);
+
+  @override
+  List<Object?> get props => [customer];
+}
+
+class PosClearCustomer extends PosEvent {
+  const PosClearCustomer();
 }
 
 class PosParkBill extends PosEvent {

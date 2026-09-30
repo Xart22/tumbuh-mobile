@@ -27,6 +27,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosSetTableNumber>(_onSetTableNumber);
     on<PosSetOrderType>(_onSetOrderType);
     on<PosSetCustomer>(_onSetCustomer);
+    on<PosSearchCustomers>(_onSearchCustomers);
+    on<PosSelectCustomer>(_onSelectCustomer);
+    on<PosClearCustomer>(_onClearCustomer);
     on<PosParkBill>(_onParkBill);
     on<PosRestoreParkedBill>(_onRestoreParkedBill);
     on<PosSubmitPayment>(_onSubmitPayment);
@@ -236,6 +239,30 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     ));
   }
 
+  Future<void> _onSearchCustomers(
+    PosSearchCustomers event,
+    Emitter<PosState> emit,
+  ) async {
+    final results = await posRepository.searchCustomers(event.query);
+    emit(state.copyWith(customerResults: results));
+  }
+
+  void _onSelectCustomer(PosSelectCustomer event, Emitter<PosState> emit) {
+    emit(state.copyWith(
+      customerId: event.customer.id,
+      customerName: event.customer.name,
+      isMember: true,
+    ));
+  }
+
+  void _onClearCustomer(PosClearCustomer event, Emitter<PosState> emit) {
+    emit(state.copyWith(
+      clearCustomer: true,
+      customerName: 'Tamu',
+      isMember: false,
+    ));
+  }
+
   Future<void> _onParkBill(PosParkBill event, Emitter<PosState> emit) async {
     if (state.cartItems.isEmpty) return;
 
@@ -285,6 +312,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         items: state.cartItems,
         totals: state.totals,
         payment: event.paymentDetails,
+        customerId: state.customerId,
         printerConfig: state.printerConfig,
       );
 
