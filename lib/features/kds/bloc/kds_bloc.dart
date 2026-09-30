@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../data/remote/kitchen_repository.dart';
 import '../data/mock/kds_mock_data.dart';
 import '../data/models/kds_ticket.dart';
 import 'kds_event.dart';
@@ -8,9 +9,13 @@ import 'kds_state.dart';
 
 class KdsBloc extends Bloc<KdsEvent, KdsState> {
   Timer? _timer;
+  Timer? _pollTimer;
+  final KitchenRepository? _kitchenRepository;
+  static const Duration _pollInterval = Duration(seconds: 10);
 
-  KdsBloc({bool autoStartTimer = false})
-      : super(KdsState(currentTime: DateTime.now())) {
+  KdsBloc({KitchenRepository? kitchenRepository, bool autoStartTimer = false})
+      : _kitchenRepository = kitchenRepository,
+        super(KdsState(currentTime: DateTime.now())) {
     on<KdsLoadTickets>(_onLoadTickets);
     on<KdsFilterStation>(_onFilterStation);
     on<KdsToggleItemDone>(_onToggleItemDone);
@@ -22,6 +27,12 @@ class KdsBloc extends Bloc<KdsEvent, KdsState> {
 
     if (autoStartTimer) {
       _startPeriodicTimer();
+    }
+    if (_kitchenRepository != null) {
+      _pollTimer = Timer.periodic(
+        _pollInterval,
+        (_) => add(const KdsLoadTickets()),
+      );
     }
   }
 
@@ -42,20 +53,56 @@ class KdsBloc extends Bloc<KdsEvent, KdsState> {
     }
   }
 
-  void _onLoadTickets(KdsLoadTickets event, Emitter<KdsState> emit) {
-    emit(state.copyWith(
-      tickets: KdsMockData.getInitialTickets(),
-      recalledTickets: KdsMockData.getInitialRecalledTickets(),
-      currentTime: DateTime.now(),
-      isLoading: false,
-    ));
+  Future<void> _onLoadTickets(KdsLoadTickets event, Emitter<KdsState> emit) async {
+    final repo = _kitchenRepository;
+    if (repo == null) {
+      emit(state.copyWith(
+        tickets: KdsMockData.getInitialTickets(),
+        recalledTickets: KdsMockData.getInitialRecalledTickets(),
+        currentTime: DateTime.now(),
+        isLoading: false,
+      ));
+      return;
+    }
+
+    try {
+      final tickets = await repo.fetchTickets();
+      emit(state.copyWith(
+        tickets: tickets,
+        currentTime: DateTime.now(),
+        isLoading: false,
+      ));
+    } catch (_) {
+      // Keep the last known queue; a later poll retries.
+      emit(state.copyWith(currentTime: DateTime.now(), isLoading: false));
+    }
+  }
+
+  /// Re-fetches the queue while preserving locally tracked recalled tickets.
+  Future<void> _refreshQueue(Emitter<KdsState> emit) async {
+    final repo = _kitchenRepository;
+    if (repo == null) return;
+    try {
+      final tickets = await repo.fetchTickets();
+      emit(state.copyWith(tickets: tickets, currentTime: DateTime.now()));
+    } catch (_) {
+      // ignore transient poll errors
+    }
   }
 
   void _onFilterStation(KdsFilterStation event, Emitter<KdsState> emit) {
     emit(state.copyWith(selectedStation: event.station));
   }
 
-  void _onToggleItemDone(KdsToggleItemDone event, Emitter<KdsState> emit) {
+  Future<void> _onToggleItemDone(KdsToggleItemDone event, Emitter<KdsState> emit) async {
+    if (_kitchenRepository != null) {
+      try {
+        await _kitchenRepository.bumpItem(event.itemId);
+        await _refreshQueue(emit);
+      } catch (_) {}
+      return;
+    }
+
     final updatedTickets = state.tickets.map((ticket) {
       if (ticket.id != event.ticketId) return ticket;
 
@@ -77,12 +124,39 @@ class KdsBloc extends Bloc<KdsEvent, KdsState> {
     emit(state.copyWith(tickets: updatedTickets));
   }
 
-  void _onBumpTicket(KdsBumpTicket event, Emitter<KdsState> emit) {
+  Future<void> _onBumpTicket(KdsBumpTicket event, Emitter<KdsState> emit) async {
     final ticketIndex = state.tickets.indexWhere((t) => t.id == event.ticketId);
     if (ticketIndex == -1) return;
 
     final ticket = state.tickets[ticketIndex];
     _playChimeIfEnabled();
+
+    final repo = _kitchenRepository;
+    if (repo != null) {
+      try {
+        if (ticket.status == KdsTicketStatus.ready) {
+          await repo.serveOrder(ticket.id);
+          final served = ticket.copyWith(
+            status: KdsTicketStatus.served,
+            items: ticket.items
+                .map((i) => i.copyWith(isCompleted: true))
+                .toList(),
+          );
+          emit(state.copyWith(
+            tickets: List<KdsTicket>.from(state.tickets)..removeAt(ticketIndex),
+            recalledTickets: [served, ...state.recalledTickets],
+          ));
+        } else {
+          for (final item in ticket.items.where((i) => !i.isCompleted)) {
+            await repo.bumpItem(item.id);
+          }
+          await _refreshQueue(emit);
+        }
+      } catch (_) {
+        // Surfaced by the next poll.
+      }
+      return;
+    }
 
     if (ticket.status == KdsTicketStatus.queued) {
       // Advance to cooking
@@ -114,9 +188,20 @@ class KdsBloc extends Bloc<KdsEvent, KdsState> {
     }
   }
 
-  void _onRecallTicket(KdsRecallTicket event, Emitter<KdsState> emit) {
+  Future<void> _onRecallTicket(KdsRecallTicket event, Emitter<KdsState> emit) async {
     final recallIndex = state.recalledTickets.indexWhere((t) => t.id == event.ticketId);
     if (recallIndex == -1) return;
+
+    if (_kitchenRepository != null) {
+      try {
+        await _kitchenRepository.recallOrder(event.ticketId);
+        final updatedRecalled = List<KdsTicket>.from(state.recalledTickets)
+          ..removeAt(recallIndex);
+        emit(state.copyWith(recalledTickets: updatedRecalled));
+        await _refreshQueue(emit);
+      } catch (_) {}
+      return;
+    }
 
     final ticketToRestore = state.recalledTickets[recallIndex];
     final updatedRecalled = List<KdsTicket>.from(state.recalledTickets)..removeAt(recallIndex);
@@ -152,6 +237,7 @@ class KdsBloc extends Bloc<KdsEvent, KdsState> {
   @override
   Future<void> close() {
     _timer?.cancel();
+    _pollTimer?.cancel();
     return super.close();
   }
 }

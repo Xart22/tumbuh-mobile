@@ -10,6 +10,7 @@ import 'data/local/db/app_database.dart';
 import 'data/local/outbox/outbox_dao.dart';
 import 'data/local/sync/sync_engine.dart';
 import 'data/remote/auth_repository.dart';
+import 'data/remote/kitchen_repository.dart';
 import 'data/remote/pos_repository.dart';
 import 'data/remote/shift_repository.dart';
 import 'features/auth/bloc/auth_bloc.dart';
@@ -118,7 +119,9 @@ class TumbuhApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final appRouter = router ?? AppRouter.createRouter();
 
-    return MultiBlocProvider(
+    return RepositoryProvider<KitchenRepository>(
+      create: (_) => KitchenRepository(apiClient: apiClient),
+      child: MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
@@ -154,6 +157,7 @@ class TumbuhApp extends StatelessWidget {
           Locale('id', 'ID'),
           Locale('en', 'US'),
         ],
+      ),
       ),
     );
   }

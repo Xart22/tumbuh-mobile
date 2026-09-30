@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../data/remote/kitchen_repository.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_typography.dart';
 import '../../bloc/kds_bloc.dart';
@@ -36,7 +37,14 @@ class _KdsScreenState extends State<KdsScreen> {
   @override
   void initState() {
     super.initState();
-    _bloc = KdsBloc(autoStartTimer: false);
+    // Falls back to mock data when no repository is provided (tests).
+    KitchenRepository? kitchen;
+    try {
+      kitchen = context.read<KitchenRepository>();
+    } catch (_) {
+      kitchen = null;
+    }
+    _bloc = KdsBloc(kitchenRepository: kitchen, autoStartTimer: false);
     _bloc.add(const KdsLoadTickets());
 
     if (widget.autoStartTimer) {
