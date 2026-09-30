@@ -46,6 +46,27 @@ void main() {
       expect(points[1].heightFactor, 1.0);
     });
 
+    test('buildStockAlerts maps low-stock items', () {
+      final alerts = OwnerRepository.buildStockAlerts({
+        'items': [
+          {
+            'id': 'm1',
+            'name': 'Susu UHT',
+            'unit': 'liter',
+            'stockQty': 0,
+            'minStockQty': 5,
+            'shortageQty': 5,
+            'costPerUnit': 15000,
+          },
+        ],
+      });
+      expect(alerts, hasLength(1));
+      expect(alerts.first.name, 'Susu UHT');
+      expect(alerts.first.isCritical, isTrue);
+      expect(alerts.first.suggestedReorderQuantity, 5);
+      expect(alerts.first.estimatedPricePerUnit, 15000);
+    });
+
     test('buildPaymentShares maps labels and amounts', () {
       final shares = OwnerRepository.buildPaymentShares({
         'methods': [

@@ -36,7 +36,7 @@ class OwnerBloc extends Bloc<OwnerEvent, OwnerState> {
           topProducts: snapshot.topProducts,
           paymentShares: snapshot.paymentShares,
           approvals: OwnerMockData.getInitialApprovals(),
-          stockAlerts: OwnerMockData.stockAlerts,
+          stockAlerts: snapshot.stockAlerts,
           availableOutlets: OwnerMockData.availableOutlets,
         ));
         return;

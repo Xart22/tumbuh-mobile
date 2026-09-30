@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../core/network/api_client.dart';
+import '../../features/owner/data/models/inventory_stock_model.dart';
 import '../../features/owner/data/models/owner_dashboard_model.dart';
 
 /// Aggregated dashboard payload for the owner home screen.
@@ -9,12 +10,14 @@ class OwnerDashboardSnapshot {
   final List<HourlySalesPoint> hourlySales;
   final List<TopProductItem> topProducts;
   final List<PaymentMethodShare> paymentShares;
+  final List<StockAlertItem> stockAlerts;
 
   const OwnerDashboardSnapshot({
     required this.kpi,
     required this.hourlySales,
     required this.topProducts,
     required this.paymentShares,
+    required this.stockAlerts,
   });
 }
 
@@ -40,6 +43,7 @@ class OwnerRepository {
       apiClient.getWithRetry('/v1/reports/profit',
           queryParameters: {'dateFrom': ymd, 'dateTo': ymd}),
       apiClient.getWithRetry('/v1/orders', queryParameters: {'status': 'held'}),
+      apiClient.getWithRetry('/v1/inventory/low-stock'),
     ]);
 
     final daily = _asMap(results[0].data);
@@ -49,6 +53,7 @@ class OwnerRepository {
     final hourly = _asMap(results[4].data);
     final profit = _asMap(results[5].data);
     final heldOrders = (results[6].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final lowStock = _asMap(results[7].data);
 
     return OwnerDashboardSnapshot(
       kpi: buildKpi(
@@ -60,7 +65,30 @@ class OwnerRepository {
       hourlySales: buildHourly(hourly),
       topProducts: topProducts.map(buildTopProduct).toList(),
       paymentShares: buildPaymentShares(paymentMethods),
+      stockAlerts: buildStockAlerts(lowStock),
     );
+  }
+
+  @visibleForTesting
+  static List<StockAlertItem> buildStockAlerts(Map<String, dynamic> lowStock) {
+    final items = ((lowStock['items'] as List<dynamic>?) ?? const [])
+        .cast<Map<String, dynamic>>();
+    return items.map((row) {
+      final stockQty = (row['stockQty'] as num?)?.toDouble() ?? 0;
+      return StockAlertItem(
+        id: row['id'] as String,
+        name: row['name'] as String? ?? 'Bahan',
+        category: 'Bahan',
+        currentStock: stockQty,
+        unit: row['unit'] as String? ?? '',
+        minStock: (row['minStockQty'] as num?)?.toDouble() ?? 0,
+        supplierName: '-',
+        isCritical: stockQty <= 0,
+        suggestedReorderQuantity:
+            (row['shortageQty'] as num?)?.toDouble() ?? 0,
+        estimatedPricePerUnit: (row['costPerUnit'] as num?)?.toInt() ?? 0,
+      );
+    }).toList();
   }
 
   static String _ymd(DateTime date) =>
