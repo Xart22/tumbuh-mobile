@@ -71,7 +71,6 @@ void main() {
     // Verify initial screen (Kasir login screen) renders
     expect(find.text('Tumbuh'), findsOneWidget);
     expect(find.text('Masukkan 6 Digit PIN Kasir'), findsOneWidget);
-    expect(find.text('Barista Rama'), findsWidgets);
 
     await inMemoryDb.close();
   });

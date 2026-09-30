@@ -5,24 +5,6 @@ import '../../../../routing/app_router.dart';
 import '../../../../shared/theme/app_typography.dart';
 import '../../bloc/auth_bloc.dart';
 
-class CashierItem {
-  final String id;
-  final String name;
-  final String initials;
-  final String shift;
-  final String roleNote;
-  final bool isSupervisor;
-
-  const CashierItem({
-    required this.id,
-    required this.name,
-    required this.initials,
-    required this.shift,
-    required this.roleNote,
-    this.isSupervisor = false,
-  });
-}
-
 class KasirLoginScreen extends StatefulWidget {
   const KasirLoginScreen({super.key});
 
@@ -31,40 +13,8 @@ class KasirLoginScreen extends StatefulWidget {
 }
 
 class _KasirLoginScreenState extends State<KasirLoginScreen> {
-  static const List<CashierItem> _scheduledCashiers = [
-    CashierItem(
-      id: 'cashier_01',
-      name: 'Barista Rama',
-      initials: 'BR',
-      shift: 'Shift 1 Pagi (07:30 - 15:30)',
-      roleNote: 'Aktif Dipilih',
-    ),
-    CashierItem(
-      id: 'cashier_02',
-      name: 'Kasir Dika',
-      initials: 'DK',
-      shift: 'Shift 2 Sore (15:00 - 23:00)',
-      roleNote: 'Shift Selanjutnya',
-    ),
-    CashierItem(
-      id: 'cashier_03',
-      name: 'Supervisor Dian P.',
-      initials: 'DP',
-      shift: 'Akses Otorisasi & Void Penuh',
-      roleNote: 'Manager on Duty',
-      isSupervisor: true,
-    ),
-  ];
-
-  late CashierItem _selectedCashier;
   String _enteredPin = '';
   String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedCashier = _scheduledCashiers[0];
-  }
 
   void _onKeyPress(String key) {
     if (_enteredPin.length < 6) {
@@ -104,10 +54,7 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
     }
 
     context.read<AuthBloc>().add(
-          AuthLoginKasirRequested(
-            pin: _enteredPin,
-            cashierName: _selectedCashier.name,
-          ),
+          AuthLoginKasirRequested(pin: _enteredPin),
         );
   }
 
@@ -403,159 +350,27 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
 
             const SizedBox(height: 20),
 
-            // 2. Cashier Selector List
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    'PILIH KASIR BERTUGAS HARI INI',
-                    style: LpTypography.labelSm.copyWith(
-                      color: const Color(0xFF94A3B8),
-                      letterSpacing: 1.2,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Ketuk nama untuk ganti',
-                  style: LpTypography.bodySm.copyWith(color: const Color(0xFF64748B)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _scheduledCashiers.length,
-              separatorBuilder: (_, index) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final cashier = _scheduledCashiers[index];
-                final isSelected = cashier.id == _selectedCashier.id;
-
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedCashier = cashier;
-                      _enteredPin = '';
-                      _errorMessage = null;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF171B22) : const Color(0xFF12151B),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF059669)
-                            : (cashier.isSupervisor ? const Color(0x4DFEA619) : const Color(0xFF2A303A)),
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF059669)
-                                      : (cashier.isSupervisor
-                                          ? const Color(0x33FEA619)
-                                          : const Color(0xFF2A303A)),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cashier.initials,
-                                    style: LpTypography.labelLg.copyWith(
-                                      color: cashier.isSupervisor && !isSelected
-                                          ? const Color(0xFFFEA619)
-                                          : Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            cashier.name,
-                                            style: LpTypography.labelLg.copyWith(
-                                              color: isSelected ? Colors.white : const Color(0xFFCBD5E1),
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? const Color(0x33059669)
-                                                : (cashier.isSupervisor
-                                                    ? const Color(0x26FEA619)
-                                                    : Colors.transparent),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            cashier.roleNote,
-                                            style: LpTypography.labelSm.copyWith(
-                                              color: isSelected
-                                                  ? const Color(0xFF85F8C4)
-                                                  : (cashier.isSupervisor
-                                                      ? const Color(0xFFFEA619)
-                                                      : const Color(0xFF64748B)),
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      cashier.shift,
-                                      style: LpTypography.bodySm.copyWith(color: const Color(0xFF94A3B8)),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (isSelected)
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF059669),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.check, size: 16, color: Colors.white),
-                          )
-                        else
-                          const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B), size: 20),
-                      ],
+            // 2. Cashier notice — the backend identifies the employee by PIN,
+            // so no cashier list exists pre-login.
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF12151B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF2A303A)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.pin_rounded, color: Color(0xFF85F8C4), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Kasir diidentifikasi dari PIN. Masukkan 6 digit PIN Anda untuk masuk.',
+                      style: LpTypography.bodySm.copyWith(color: const Color(0xFF94A3B8)),
                     ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
           ],
         ),
@@ -564,9 +379,9 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
         InkWell(
           onTap: () {
             context.read<AuthBloc>().add(
-                  AuthBiometricLoginRequested(
-                    cashierId: _selectedCashier.id,
-                    cashierName: _selectedCashier.name,
+                  const AuthBiometricLoginRequested(
+                    cashierId: 'biometric',
+                    cashierName: 'Kasir',
                   ),
                 );
           },
@@ -648,7 +463,7 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
                     const Icon(Icons.badge_rounded, size: 16, color: Color(0xFF059669)),
                     const SizedBox(width: 8),
                     Text(
-                      'Kasir: ${_selectedCashier.name} (${_selectedCashier.shift.split(' ').first})',
+                      'Kasir diidentifikasi dari PIN',
                       style: LpTypography.bodySm.copyWith(color: Colors.white),
                     ),
                   ],

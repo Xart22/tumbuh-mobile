@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,6 +8,7 @@ import 'core/device/device_service.dart';
 import 'core/network/api_client.dart';
 import 'core/printer/thermal_printer_service.dart';
 import 'core/security/secure_storage_service.dart';
+import 'core/session/session_reset.dart';
 import 'data/local/db/app_database.dart';
 import 'data/local/outbox/outbox_dao.dart';
 import 'data/local/sync/sync_engine.dart';
@@ -40,7 +43,10 @@ void main() async {
   // 4. Network client with auto-idempotency & 401 handling
   final apiClient = ApiClient(
     storage: secureStorage,
-    onUnauthorized: () => router.go(AppRouter.loginKasir),
+    onUnauthorized: () {
+      SessionReset.instance.fire();
+      router.go(AppRouter.loginKasir);
+    },
   );
 
   // 5. Background Sync Engine for offline-first transactional replay
@@ -153,6 +159,7 @@ class TumbuhApp extends StatelessWidget {
         ),
       ],
 
+      child: _SessionResetListener(
       child: MaterialApp.router(
         title: 'Tumbuh POS',
         debugShowCheckedModeBanner: false,
@@ -171,6 +178,39 @@ class TumbuhApp extends StatelessWidget {
         ],
       ),
       ),
+      ),
     );
   }
+}
+
+/// Listens for a global session reset (API 401) and clears per-session state.
+class _SessionResetListener extends StatefulWidget {
+  final Widget child;
+  const _SessionResetListener({required this.child});
+
+  @override
+  State<_SessionResetListener> createState() => _SessionResetListenerState();
+}
+
+class _SessionResetListenerState extends State<_SessionResetListener> {
+  StreamSubscription<void>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = SessionReset.instance.stream.listen((_) {
+      if (!mounted) return;
+      context.read<AuthBloc>().add(AuthLogoutRequested());
+      context.read<PosBloc>().add(const PosClearCart());
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
