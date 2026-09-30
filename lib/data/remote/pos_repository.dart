@@ -295,6 +295,9 @@ class PosRepository {
     return s.isEmpty ? '0' : s;
   }
 
+  static Map<String, dynamic> _asMap(dynamic value) =>
+      value is Map<String, dynamic> ? value : Map<String, dynamic>.from(value as Map);
+
   static String _mapOrderType(String orderType) {
     final s = orderType.toLowerCase();
     if (s.contains('delivery')) return 'delivery';
@@ -604,31 +607,196 @@ class PosRepository {
     });
   }
 
-  /// Park Bill (Hold Bill - F2)
+  List<Map<String, dynamic>> _orderItemsPayload(List<CartItem> items) => items
+      .map((i) => {
+            'productId': i.product.id,
+            'qty': i.quantity,
+            'unitPrice': i.unitPrice,
+            if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,
+          })
+      .toList();
+
+  Future<String?> _resolveDineInTableId(String tableNumber, String orderType) {
+    if (_mapOrderType(orderType) != 'dine_in') return Future.value(null);
+    return resolveTableId(tableNumber);
+  }
+
+  /// Park Bill (Hold Bill - F2). Creates a held order server-side; falls back
+  /// to the in-memory list when offline.
   Future<ParkedBill> parkBill({
     required String tableNumber,
     required String orderType,
     required String customerName,
     required List<CartItem> items,
   }) async {
-    final id = const Uuid().v4();
-    final ticketNum = 'TB-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-    final bill = ParkedBill(
-      id: id,
-      ticketNumber: ticketNum,
+    final fallback = ParkedBill(
+      id: const Uuid().v4(),
+      ticketNumber: 'TB-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       tableNumber: tableNumber,
       orderType: orderType,
       customerName: customerName,
       items: items,
       parkedAt: DateTime.now(),
     );
-    _parkedBills.add(bill);
-    return bill;
+
+    if (!fetchFromNetwork) {
+      _parkedBills.add(fallback);
+      return fallback;
+    }
+
+    try {
+      final tableId = await _resolveDineInTableId(tableNumber, orderType);
+      final response = await apiClient.dio.post(
+        '/v1/orders',
+        data: {
+          'orderType': _mapOrderType(orderType),
+          'items': _orderItemsPayload(items),
+          'tableId': ?tableId,
+          'park': true,
+        },
+        options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+      );
+      final created = _asMap(response.data);
+      final bill = ParkedBill(
+        id: created['id'] as String? ?? fallback.id,
+        ticketNumber: created['orderNumber'] as String? ?? fallback.ticketNumber,
+        tableNumber: tableNumber,
+        orderType: orderType,
+        customerName: customerName,
+        items: items,
+        parkedAt: DateTime.tryParse(created['createdAt'] as String? ?? '') ??
+            DateTime.now(),
+      );
+      _parkedBills.add(bill);
+      return bill;
+    } catch (_) {
+      _parkedBills.add(fallback);
+      return fallback;
+    }
+  }
+
+  /// Fetches held orders from the backend and refreshes the local cache.
+  Future<List<ParkedBill>> fetchParkedBills() async {
+    if (!fetchFromNetwork) return List.unmodifiable(_parkedBills);
+    try {
+      final res = await apiClient.getWithRetry(
+        '/v1/orders',
+        queryParameters: {'status': 'held'},
+      );
+      final rows = (res.data as List<dynamic>).cast<Map<String, dynamic>>();
+      final products = await _loadAllProducts();
+      final byId = {for (final p in products) p.id: p};
+
+      final bills = rows.map((row) => parkedBillFromOrder(row, byId)).toList();
+      _parkedBills
+        ..clear()
+        ..addAll(bills);
+      return bills;
+    } catch (_) {
+      return List.unmodifiable(_parkedBills);
+    }
+  }
+
+  @visibleForTesting
+  static ParkedBill parkedBillFromOrder(
+    Map<String, dynamic> row,
+    Map<String, PosProduct> productsById,
+  ) {
+    final items = ((row['items'] as List<dynamic>?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map((item) => cartItemFromOrderItem(item, productsById))
+        .toList();
+
+    return ParkedBill(
+      id: row['id'] as String,
+      ticketNumber: row['orderNumber'] as String? ?? '-',
+      tableNumber: row['tableNumber'] as String? ?? '-',
+      orderType: _orderTypeToDisplay(row['orderType'] as String? ?? 'dine_in'),
+      customerName: row['customerName'] as String? ?? 'Tamu',
+      items: items,
+      parkedAt:
+          DateTime.tryParse(row['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  @visibleForTesting
+  static CartItem cartItemFromOrderItem(
+    Map<String, dynamic> item,
+    Map<String, PosProduct> productsById,
+  ) {
+    final productId = item['productId'] as String;
+    final unitPrice = (item['unitPrice'] as num?)?.toInt() ?? 0;
+
+    final modifiers = ((item['modifiers'] as List<dynamic>?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map((m) => ModifierOption(
+              id: m['modifierId'] as String? ?? '',
+              name: m['modifierName'] as String? ?? 'Modifier',
+              priceDelta: (m['priceAddition'] as num?)?.toInt() ?? 0,
+            ))
+        .toList();
+    final modifierSum =
+        modifiers.fold<int>(0, (sum, m) => sum + m.priceDelta);
+
+    final catalogProduct = productsById[productId];
+    final product = catalogProduct ??
+        PosProduct(
+          id: productId,
+          name: item['productName'] as String? ?? 'Produk',
+          sku: '',
+          price: unitPrice - modifierSum,
+          categoryId: '',
+          categoryName: 'Lainnya',
+        );
+
+    return CartItem(
+      id: item['id'] as String,
+      product: product,
+      selectedModifiers: modifiers,
+      quantity: (item['qty'] as num?)?.toInt() ?? 1,
+      notes: item['notes'] as String?,
+    );
+  }
+
+  static String _orderTypeToDisplay(String orderType) {
+    switch (orderType) {
+      case 'take_away':
+        return 'Takeaway';
+      case 'delivery':
+        return 'Delivery';
+      default:
+        return 'Dine-in';
+    }
   }
 
   List<ParkedBill> getParkedBills() => List.unmodifiable(_parkedBills);
 
-  void removeParkedBill(String id) {
+  /// Resume a parked bill: unhold server-side (best-effort) and drop locally.
+  Future<void> resumeParkedBill(String id) async {
+    if (fetchFromNetwork) {
+      try {
+        await apiClient.dio.post(
+          '/v1/orders/$id/unhold',
+          options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+        );
+      } catch (_) {
+        // Offline: local-only parked bills still restore.
+      }
+    }
+    _parkedBills.removeWhere((b) => b.id == id);
+  }
+
+  Future<void> cancelParkedBill(String id) async {
+    if (fetchFromNetwork) {
+      try {
+        await apiClient.dio.post(
+          '/v1/orders/$id/cancel',
+          options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+        );
+      } catch (_) {
+        // ignore; still remove locally
+      }
+    }
     _parkedBills.removeWhere((b) => b.id == id);
   }
 
@@ -650,22 +818,13 @@ class PosRepository {
     // Modifier selections are folded into unitPrice (see CartItem.unitPrice).
     final payload = {
       'orderType': _mapOrderType(orderType),
-      'items': items
-          .map((i) => {
-                'productId': i.product.id,
-                'qty': i.quantity,
-                'unitPrice': i.unitPrice,
-                if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,
-              })
-          .toList(),
+      'items': _orderItemsPayload(items),
       if (totals.totalDiscount > 0) 'discountAmount': totals.totalDiscount,
       if (totals.totalDiscount > 0) 'discountName': 'Diskon',
     };
 
-    if (_mapOrderType(orderType) == 'dine_in') {
-      final tableId = await resolveTableId(tableNumber);
-      if (tableId != null) payload['tableId'] = tableId;
-    }
+    final tableId = await _resolveDineInTableId(tableNumber, orderType);
+    if (tableId != null) payload['tableId'] = tableId;
 
     bool isOnlineSuccess = false;
     try {

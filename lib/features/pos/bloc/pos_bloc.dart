@@ -104,6 +104,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       ];
 
       final totals = _recalculateTotals(initialCart, state.voucherDiscount);
+      final parkedBills = await posRepository.fetchParkedBills();
 
       emit(state.copyWith(
         status: PosStatus.ready,
@@ -111,6 +112,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         allProducts: products,
         filteredProducts: products,
         cartItems: initialCart,
+        parkedBills: parkedBills,
         totals: totals,
       ));
     } catch (e) {
@@ -254,11 +256,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     ));
   }
 
-  void _onRestoreParkedBill(PosRestoreParkedBill event, Emitter<PosState> emit) {
+  Future<void> _onRestoreParkedBill(PosRestoreParkedBill event, Emitter<PosState> emit) async {
     final bills = posRepository.getParkedBills();
     final match = bills.firstWhere((b) => b.id == event.parkedBillId, orElse: () => bills.first);
 
-    posRepository.removeParkedBill(match.id);
+    await posRepository.resumeParkedBill(match.id);
     final remainingBills = posRepository.getParkedBills();
     final totals = _recalculateTotals(match.items, state.voucherDiscount);
 

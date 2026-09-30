@@ -14,6 +14,45 @@ void main() {
       expect(c.sortOrder, 3);
     });
 
+    test('parkedBillFromOrder maps a held order and rebuilds unit price', () {
+      final bill = PosRepository.parkedBillFromOrder(
+        {
+          'id': 'o1',
+          'orderNumber': 'TB-001',
+          'orderType': 'dine_in',
+          'tableNumber': 'Meja 04',
+          'customerName': 'Dian',
+          'createdAt': '2026-10-01T08:00:00.000Z',
+          'items': [
+            {
+              'id': 'i1',
+              'productId': 'p1',
+              'qty': 2,
+              'unitPrice': 28000,
+              'notes': 'panas',
+              'modifiers': [
+                {
+                  'modifierId': 'm1',
+                  'modifierName': 'Oat Milk',
+                  'priceAddition': 6000,
+                },
+              ],
+            },
+          ],
+        },
+        const {},
+      );
+
+      expect(bill.ticketNumber, 'TB-001');
+      expect(bill.orderType, 'Dine-in');
+      expect(bill.items, hasLength(1));
+      expect(bill.items.first.quantity, 2);
+      expect(bill.items.first.notes, 'panas');
+      // 22000 base + 6000 modifier reconstructs the original 28000.
+      expect(bill.items.first.product.price, 22000);
+      expect(bill.items.first.unitPrice, 28000);
+    });
+
     test('normalizeTableName matches common table labels', () {
       expect(PosRepository.normalizeTableName('Meja 04'), '4');
       expect(PosRepository.normalizeTableName('04'), '4');
