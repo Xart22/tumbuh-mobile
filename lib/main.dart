@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'core/device/device_service.dart';
 import 'core/network/api_client.dart';
 import 'core/printer/thermal_printer_service.dart';
@@ -30,25 +31,26 @@ void main() async {
   final appDb = AppDatabase();
   final outboxDao = OutboxDao(appDb);
 
-  // 3. Network client with auto-idempotency & 401 handling
+  // 3. Router (shared so a global 401 can bounce back to login)
+  final router = AppRouter.createRouter();
+
+  // 4. Network client with auto-idempotency & 401 handling
   final apiClient = ApiClient(
     storage: secureStorage,
-    onUnauthorized: () {
-      // Handle global 401 logout
-    },
+    onUnauthorized: () => router.go(AppRouter.loginKasir),
   );
 
-  // 4. Background Sync Engine for offline-first transactional replay
+  // 5. Background Sync Engine for offline-first transactional replay
   final syncEngine = SyncEngine(
     outboxDao: outboxDao,
     apiClient: apiClient,
   );
   syncEngine.init();
 
-  // 5. Hardware Printer Service
+  // 6. Hardware Printer Service
   final printerService = ThermalPrinterService();
 
-  // 6. Repositories
+  // 7. Repositories
   final authRepository = AuthRepository(
     apiClient: apiClient,
     storage: secureStorage,
@@ -67,10 +69,12 @@ void main() async {
     database: appDb,
     outboxDao: outboxDao,
     printerService: printerService,
+    storage: secureStorage,
   );
 
   runApp(
     TumbuhApp(
+      router: router,
       secureStorage: secureStorage,
       appDb: appDb,
       outboxDao: outboxDao,
@@ -85,6 +89,7 @@ void main() async {
 }
 
 class TumbuhApp extends StatelessWidget {
+  final GoRouter? router;
   final SecureStorageService secureStorage;
   final AppDatabase appDb;
   final OutboxDao outboxDao;
@@ -97,6 +102,7 @@ class TumbuhApp extends StatelessWidget {
 
   const TumbuhApp({
     super.key,
+    this.router,
     required this.secureStorage,
     required this.appDb,
     required this.outboxDao,
@@ -110,7 +116,7 @@ class TumbuhApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final router = AppRouter.createRouter();
+    final appRouter = router ?? AppRouter.createRouter();
 
     return MultiBlocProvider(
       providers: [
@@ -138,7 +144,7 @@ class TumbuhApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkPosTheme,
         themeMode: ThemeMode.dark, // Default to dark tactile mode for POS/KDS
-        routerConfig: router,
+        routerConfig: appRouter,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/screens/kasir_login_screen.dart';
+import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/kds/presentation/screens/kds_screen.dart';
 import '../features/owner/presentation/screens/owner_dashboard_screen.dart';
 import '../features/pos/presentation/screens/pos_tablet_screen.dart';
@@ -11,6 +12,7 @@ class AppRouter {
   AppRouter._();
 
   static const String loginKasir = '/login-kasir';
+  static const String setup = '/setup';
   static const String pos = '/pos';
   static const String kds = '/kds';
   static const String owner = '/owner';
@@ -27,6 +29,10 @@ class AppRouter {
           builder: (context, state) => const KasirLoginScreen(),
         ),
         GoRoute(
+          path: setup,
+          builder: (context, state) => const OwnerSetupScreen(),
+        ),
+        GoRoute(
           path: pos,
           builder: (context, state) => const PosTabletScreen(),
         ),
@@ -40,7 +46,9 @@ class AppRouter {
         ),
         GoRoute(
           path: shift,
-          builder: (context, state) => const ShiftScreen(),
+          builder: (context, state) => ShiftScreen(
+            autoEnterPos: state.uri.queryParameters['autopos'] == '1',
+          ),
         ),
         GoRoute(
           path: printerSettings,

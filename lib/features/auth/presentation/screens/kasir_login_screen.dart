@@ -106,7 +106,6 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
     context.read<AuthBloc>().add(
           AuthLoginKasirRequested(
             pin: _enteredPin,
-            cashierId: _selectedCashier.id,
             cashierName: _selectedCashier.name,
           ),
         );
@@ -117,8 +116,8 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthKasirAuthenticated) {
-          // Navigate to shift check or POS
-          context.go(AppRouter.pos);
+          // Enter through the shift gate: order creation needs an open shift.
+          context.go('${AppRouter.shift}?autopos=1');
         } else if (state is AuthFailure) {
           setState(() {
             _errorMessage = state.message;
@@ -280,9 +279,9 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
               ),
               const SizedBox(width: 16),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => context.go(AppRouter.setup),
                 icon: const Icon(Icons.settings_suggest_rounded, size: 16),
-                label: const Text('Diag'),
+                label: const Text('Setup'),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: const Color(0xFF0E1116),
                   foregroundColor: const Color(0xFF94A3B8),

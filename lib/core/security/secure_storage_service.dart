@@ -16,6 +16,7 @@ class SecureStorageService {
   static const String _keyUserRole = 'user_role';
   static const String _keyDeviceId = 'device_id';
   static const String _keyActiveOutletId = 'active_outlet_id';
+  static const String _keyOutletPricing = 'active_outlet_pricing';
   static const String _keyActiveShiftId = 'active_shift_id';
   static const String _keyOfflinePinHash = 'offline_pin_hash';
 
@@ -66,6 +67,15 @@ class SecureStorageService {
 
   Future<String?> getActiveOutletId() async {
     return await _storage.read(key: _keyActiveOutletId);
+  }
+
+  /// Cached outlet pricing (tax/service/rounding) as JSON.
+  Future<void> saveOutletPricing(String json) async {
+    await _storage.write(key: _keyOutletPricing, value: json);
+  }
+
+  Future<String?> getOutletPricing() async {
+    return await _storage.read(key: _keyOutletPricing);
   }
 
   Future<void> saveActiveShiftId(String shiftId) async {

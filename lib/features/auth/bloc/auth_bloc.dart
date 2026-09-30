@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../data/models/auth_user.dart';
+import '../../../data/models/outlet_summary.dart';
 import '../../../data/remote/auth_repository.dart';
 
 // --- Events ---
@@ -15,17 +16,38 @@ class AuthCheckStatus extends AuthEvent {}
 
 class AuthLoginKasirRequested extends AuthEvent {
   final String pin;
-  final String cashierId;
-  final String cashierName;
+  final String? cashierName;
 
   const AuthLoginKasirRequested({
     required this.pin,
-    required this.cashierId,
-    required this.cashierName,
+    this.cashierName,
   });
 
   @override
-  List<Object?> get props => [pin, cashierId, cashierName];
+  List<Object?> get props => [pin, cashierName];
+}
+
+class AuthOwnerLoginRequested extends AuthEvent {
+  final String email;
+  final String password;
+  final String? tenantSlug;
+
+  const AuthOwnerLoginRequested({
+    required this.email,
+    required this.password,
+    this.tenantSlug,
+  });
+
+  @override
+  List<Object?> get props => [email, password, tenantSlug];
+}
+
+class AuthSelectOutletRequested extends AuthEvent {
+  final String outletId;
+  const AuthSelectOutletRequested(this.outletId);
+
+  @override
+  List<Object?> get props => [outletId];
 }
 
 class AuthBiometricLoginRequested extends AuthEvent {
@@ -56,10 +78,32 @@ class AuthLoading extends AuthState {}
 
 class AuthUnauthenticated extends AuthState {
   final bool biometricAvailable;
-  const AuthUnauthenticated({this.biometricAvailable = false});
+  final bool hasOutlet;
+  const AuthUnauthenticated({
+    this.biometricAvailable = false,
+    this.hasOutlet = true,
+  });
 
   @override
-  List<Object?> get props => [biometricAvailable];
+  List<Object?> get props => [biometricAvailable, hasOutlet];
+}
+
+/// Owner logged in and the tenant's outlet list is ready to pick from.
+class AuthOwnerOutletsLoaded extends AuthState {
+  final List<OutletSummary> outlets;
+  const AuthOwnerOutletsLoaded(this.outlets);
+
+  @override
+  List<Object?> get props => [outlets];
+}
+
+/// Device is now bound to an outlet; cashier PIN login can proceed.
+class AuthOutletConfigured extends AuthState {
+  final String outletId;
+  const AuthOutletConfigured(this.outletId);
+
+  @override
+  List<Object?> get props => [outletId];
 }
 
 class AuthKasirAuthenticated extends AuthState {
@@ -99,6 +143,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(AuthInitial()) {
     on<AuthCheckStatus>(_onCheckStatus);
     on<AuthLoginKasirRequested>(_onLoginKasir);
+    on<AuthOwnerLoginRequested>(_onOwnerLogin);
+    on<AuthSelectOutletRequested>(_onSelectOutlet);
     on<AuthBiometricLoginRequested>(_onBiometricLogin);
     on<AuthLogoutRequested>(_onLogout);
   }
@@ -123,7 +169,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthKasirAuthenticated(user));
       }
     } else {
-      emit(AuthUnauthenticated(biometricAvailable: biometric));
+      final outletId = await _storage.getActiveOutletId();
+      emit(AuthUnauthenticated(
+        biometricAvailable: biometric,
+        hasOutlet: outletId != null && outletId.isNotEmpty,
+      ));
     }
   }
 
@@ -132,7 +182,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authRepository.loginKasir(
         pin: event.pin,
-        cashierId: event.cashierId,
         cashierName: event.cashierName,
       );
       emit(AuthKasirAuthenticated(user));
@@ -141,6 +190,31 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
       emit(AuthUnauthenticated(biometricAvailable: biometric));
     }
+  }
+
+  Future<void> _onOwnerLogin(AuthOwnerLoginRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      await _authRepository.loginOwner(
+        email: event.email,
+        password: event.password,
+        tenantSlug: event.tenantSlug,
+      );
+      final outlets = await _authRepository.fetchOutlets();
+      emit(AuthOwnerOutletsLoaded(outlets));
+    } catch (e) {
+      emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onSelectOutlet(AuthSelectOutletRequested event, Emitter<AuthState> emit) async {
+    await _storage.saveActiveOutletId(event.outletId);
+    try {
+      await _authRepository.fetchOutletPricing(event.outletId);
+    } catch (_) {
+      // Non-fatal: cashier login still works; pricing falls back to defaults.
+    }
+    emit(AuthOutletConfigured(event.outletId));
   }
 
   Future<void> _onBiometricLogin(AuthBiometricLoginRequested event, Emitter<AuthState> emit) async {

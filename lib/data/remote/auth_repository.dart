@@ -7,6 +7,8 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../core/security/secure_storage_service.dart';
 import '../models/auth_user.dart';
+import '../models/outlet_pricing.dart';
+import '../models/outlet_summary.dart';
 
 class AuthRepository {
   final ApiClient _apiClient;
@@ -24,38 +26,51 @@ class AuthRepository {
         _deviceService = deviceService,
         _localAuth = localAuth ?? LocalAuthentication();
 
-  /// Logs in Cashier with 6-digit PIN and hardware Device ID binding
+  Map<String, dynamic> _asMap(dynamic value) =>
+      value is Map<String, dynamic> ? value : Map<String, dynamic>.from(value as Map);
+
+  /// Logs in Cashier with 6-digit PIN against the active outlet.
+  /// Backend: `POST /v1/auth/login-kasir` body `{outletId, pin}`.
   Future<AuthUser> loginKasir({
     required String pin,
-    required String cashierId,
-    required String cashierName,
+    String? outletId,
+    String? cashierName,
   }) async {
+    final activeOutletId = outletId ?? await _storage.getActiveOutletId();
+    if (activeOutletId == null || activeOutletId.isEmpty) {
+      throw const ValidationException(
+        message: 'Outlet belum diatur di tablet ini. Jalankan Setup Outlet (Owner) dulu.',
+      );
+    }
+
     final deviceId = await _deviceService.getOrCreateDeviceId();
 
     try {
       final response = await _apiClient.dio.post(
         '/v1/auth/login-kasir',
         data: {
+          'outletId': activeOutletId,
           'pin': pin,
-          'cashierId': cashierId,
-          'deviceId': deviceId,
         },
       );
 
-      final data = response.data as Map<String, dynamic>;
-      final token = data['token'] as String;
-      final refreshToken = data['refreshToken'] as String?;
-      final userData = data['user'] as Map<String, dynamic>;
-      final user = AuthUser.fromJson(userData);
+      final data = _asMap(response.data);
+      final token = data['accessToken'] as String;
+      final parsed = AuthUser.fromJson(_asMap(data['user']));
+      final user = AuthUser(
+        id: parsed.id,
+        name: parsed.name,
+        email: parsed.email,
+        role: parsed.role,
+        outletId: activeOutletId,
+      );
 
-      // Save credentials & offline verification hash
       await _storage.saveToken(token);
-      if (refreshToken != null) await _storage.saveRefreshToken(refreshToken);
       await _storage.saveUserRole(user.role);
-      if (user.outletId != null) await _storage.saveActiveOutletId(user.outletId!);
+      await _storage.saveActiveOutletId(activeOutletId);
 
       // Cache salted PIN hash for emergency offline verification
-      final pinHash = sha256.convert(utf8.encode('$deviceId:$pin')).toString();
+      final pinHash = sha256.convert(utf8.encode('$deviceId:$activeOutletId:$pin')).toString();
       await _storage.saveOfflinePinHash(pinHash);
 
       return user;
@@ -63,24 +78,23 @@ class AuthRepository {
       if (e is NetworkOfflineException) {
         // Offline verification check
         final cachedHash = await _storage.getOfflinePinHash();
-        final inputHash = sha256.convert(utf8.encode('$deviceId:$pin')).toString();
+        final inputHash = sha256.convert(utf8.encode('$deviceId:$activeOutletId:$pin')).toString();
 
         if (cachedHash != null && cachedHash == inputHash) {
-          // Offline login successful
           final user = AuthUser(
-            id: cashierId,
-            name: cashierName,
+            id: 'offline',
+            name: cashierName ?? 'Kasir (Offline)',
             email: '',
             role: 'kasir',
+            outletId: activeOutletId,
             shiftTitle: 'Shift Berjalan (Offline)',
           );
           await _storage.saveUserRole(user.role);
           return user;
-        } else {
-          throw const ValidationException(
-            message: 'Mode offline: PIN kasir tidak cocok dengan kredensial tersimpan di tablet ini.',
-          );
         }
+        throw const ValidationException(
+          message: 'Mode offline: PIN kasir tidak cocok dengan kredensial tersimpan di tablet ini.',
+        );
       }
       rethrow;
     } on DioException catch (e) {
@@ -89,31 +103,54 @@ class AuthRepository {
     }
   }
 
-  /// Logs in Owner with Email and Password
+  /// Logs in Owner with Email and Password.
+  /// Backend: `POST /v1/auth/login` body `{email, password, tenantSlug?}`.
   Future<AuthUser> loginOwner({
     required String email,
     required String password,
+    String? tenantSlug,
   }) async {
     final response = await _apiClient.dio.post(
-      '/v1/auth/login-owner',
+      '/v1/auth/login',
       data: {
         'email': email,
         'password': password,
+        if (tenantSlug != null && tenantSlug.trim().isNotEmpty)
+          'tenantSlug': tenantSlug.trim(),
       },
     );
 
-    final data = response.data as Map<String, dynamic>;
-    final token = data['token'] as String;
-    final refreshToken = data['refreshToken'] as String?;
-    final userData = data['user'] as Map<String, dynamic>;
-    final user = AuthUser.fromJson(userData);
+    final data = _asMap(response.data);
+    if (data['requiresWorkspace'] == true) {
+      throw const ValidationException(
+        message: 'Email ini terdaftar di beberapa workspace. Isi kolom Workspace (slug) lalu coba lagi.',
+      );
+    }
 
+    final token = data['accessToken'] as String;
+    final refreshToken = data['refreshToken'] as String?;
     await _storage.saveToken(token);
     if (refreshToken != null) await _storage.saveRefreshToken(refreshToken);
-    await _storage.saveUserRole(user.role);
-    if (user.outletId != null) await _storage.saveActiveOutletId(user.outletId!);
+    await _storage.saveUserRole('owner');
 
-    return user;
+    return AuthUser.fromJson(_asMap(data['user']));
+  }
+
+  /// Lists outlets in the owner's tenant. Backend: `GET /v1/outlets`.
+  Future<List<OutletSummary>> fetchOutlets() async {
+    final response = await _apiClient.dio.get('/v1/outlets');
+    final list = response.data as List<dynamic>;
+    return list
+        .map((item) => OutletSummary.fromJson(_asMap(item)))
+        .toList();
+  }
+
+  /// Fetches and caches outlet pricing rules. Backend: `GET /v1/outlets/:id`.
+  Future<OutletPricing> fetchOutletPricing(String outletId) async {
+    final response = await _apiClient.dio.get('/v1/outlets/$outletId');
+    final pricing = OutletPricing.fromOutletJson(_asMap(response.data));
+    await _storage.saveOutletPricing(jsonEncode(pricing.toJson()));
+    return pricing;
   }
 
   /// Checks if hardware biometric sensor is available on tablet
