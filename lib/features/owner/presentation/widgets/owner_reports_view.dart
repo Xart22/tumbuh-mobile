@@ -131,11 +131,11 @@ class OwnerReportsView extends StatelessWidget {
 
               // P&L Breakdown
               _buildPlRow(
-                title: 'HPP Bahan Baku (Food Cost 33.9%)',
+                title: 'HPP Bahan Baku (Food Cost)',
                 badgeText: 'Margin Sehat',
                 badgeColor: Colors.green.shade700,
                 badgeBg: Colors.green.shade50,
-                amountText: '-Rp 5.030.000',
+                amountText: '-${OrderMath.formatCurrency(kpiData.cogs)}',
                 isNegative: true,
               ),
               const SizedBox(height: 10),
@@ -146,8 +146,8 @@ class OwnerReportsView extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _buildPlRow(
-                title: 'Pajak Restoran (PB1 10% Terkumpul)',
-                amountText: '+Rp 1.485.000',
+                title: 'Pajak Restoran (PB1 Terkumpul)',
+                amountText: '+${OrderMath.formatCurrency(kpiData.taxCollected)}',
               ),
               const SizedBox(height: 10),
               _buildPlRow(

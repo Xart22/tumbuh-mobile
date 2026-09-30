@@ -115,8 +115,41 @@ class OwnerBloc extends Bloc<OwnerEvent, OwnerState> {
     emit(state.copyWith(approvalFilter: event.status));
   }
 
-  void _onChangeReportDateRange(OwnerChangeReportDateRange event, Emitter<OwnerState> emit) {
+  ({DateTime from, DateTime to}) _rangeFor(String label) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (label) {
+      case 'Kemarin':
+        final y = today.subtract(const Duration(days: 1));
+        return (from: y, to: y);
+      case '7 Hari Terakhir':
+        return (from: today.subtract(const Duration(days: 6)), to: today);
+      case 'Bulan Ini':
+        return (from: DateTime(now.year, now.month, 1), to: today);
+      default:
+        return (from: today, to: today);
+    }
+  }
+
+  Future<void> _onChangeReportDateRange(
+    OwnerChangeReportDateRange event,
+    Emitter<OwnerState> emit,
+  ) async {
     emit(state.copyWith(reportDateRange: event.dateRange));
+
+    final repo = _ownerRepository;
+    if (repo == null) return;
+    try {
+      final range = _rangeFor(event.dateRange);
+      final snapshot = await repo.fetchReports(from: range.from, to: range.to);
+      emit(state.copyWith(
+        kpiData: snapshot.kpi,
+        topProducts: snapshot.topProducts,
+        paymentShares: snapshot.paymentShares,
+      ));
+    } catch (_) {
+      // Keep the previous figures on failure.
+    }
   }
 
   void _onQuickReorderItem(OwnerQuickReorderItem event, Emitter<OwnerState> emit) {

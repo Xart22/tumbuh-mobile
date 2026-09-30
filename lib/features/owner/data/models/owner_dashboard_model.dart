@@ -6,6 +6,8 @@ class OwnerKpiData extends Equatable {
   final double growthVsYesterdayPct;
   final int grossProfit;
   final double grossMarginPct;
+  final int cogs;
+  final int taxCollected;
   final int transactionCount;
   final int avgTicket;
   final int openBillsCount;
@@ -19,6 +21,8 @@ class OwnerKpiData extends Equatable {
     required this.growthVsYesterdayPct,
     required this.grossProfit,
     required this.grossMarginPct,
+    this.cogs = 0,
+    this.taxCollected = 0,
     required this.transactionCount,
     required this.avgTicket,
     required this.openBillsCount,
@@ -37,6 +41,8 @@ class OwnerKpiData extends Equatable {
         growthVsYesterdayPct,
         grossProfit,
         grossMarginPct,
+        cogs,
+        taxCollected,
         transactionCount,
         avgTicket,
         openBillsCount,

@@ -21,6 +21,18 @@ class OwnerDashboardSnapshot {
   });
 }
 
+class OwnerReportsSnapshot {
+  final OwnerKpiData kpi;
+  final List<TopProductItem> topProducts;
+  final List<PaymentMethodShare> paymentShares;
+
+  const OwnerReportsSnapshot({
+    required this.kpi,
+    required this.topProducts,
+    required this.paymentShares,
+  });
+}
+
 /// Owner backoffice reads (tumbuh-be `/v1/reports/*`, `/v1/orders`).
 class OwnerRepository {
   final ApiClient apiClient;
@@ -91,6 +103,50 @@ class OwnerRepository {
     }).toList();
   }
 
+  /// Range report used by the owner Reports tab.
+  Future<OwnerReportsSnapshot> fetchReports({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final fromYmd = _ymd(from);
+    final toYmd = _ymd(to);
+    final results = await Future.wait<dynamic>([
+      apiClient.getWithRetry('/v1/reports/sales-summary',
+          queryParameters: {'dateFrom': fromYmd, 'dateTo': toYmd}),
+      apiClient.getWithRetry('/v1/reports/profit',
+          queryParameters: {'dateFrom': fromYmd, 'dateTo': toYmd}),
+      apiClient.getWithRetry('/v1/reports/top-products',
+          queryParameters: {'dateFrom': fromYmd, 'dateTo': toYmd, 'top': 5}),
+      apiClient.getWithRetry('/v1/reports/payment-methods',
+          queryParameters: {'dateFrom': fromYmd, 'dateTo': toYmd}),
+    ]);
+
+    final sales = _asMap(results[0].data);
+    final profit = _asMap(results[1].data);
+    final topProducts =
+        (results[2].data as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return OwnerReportsSnapshot(
+      kpi: OwnerKpiData(
+        todayRevenue: _int(sales['netSales']),
+        targetRevenue: 0,
+        growthVsYesterdayPct: 0,
+        grossProfit: _int(profit['grossProfit']),
+        grossMarginPct: (profit['grossMarginPct'] as num?)?.toDouble() ?? 0,
+        cogs: _int(profit['cogs']),
+        taxCollected: _int(sales['taxAmount']),
+        transactionCount: _int(sales['totalOrders']),
+        avgTicket: _int(sales['averageOrderValue']),
+        openBillsCount: 0,
+        openBillsValue: 0,
+        cashierDeposit: 0,
+        cashVariance: 0,
+      ),
+      topProducts: topProducts.map(buildTopProduct).toList(),
+      paymentShares: buildPaymentShares(_asMap(results[3].data)),
+    );
+  }
+
   static String _ymd(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
@@ -120,6 +176,8 @@ class OwnerRepository {
       growthVsYesterdayPct: growth,
       grossProfit: _int(profit['grossProfit']),
       grossMarginPct: (profit['grossMarginPct'] as num?)?.toDouble() ?? 0,
+      cogs: _int(profit['cogs']),
+      taxCollected: _int(daily['taxAmount']),
       transactionCount: _int(daily['orderCount']),
       avgTicket: _int(daily['averageOrderValue']),
       openBillsCount: heldOrders.length,
