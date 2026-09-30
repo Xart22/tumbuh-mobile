@@ -11,6 +11,7 @@ import 'data/local/outbox/outbox_dao.dart';
 import 'data/local/sync/sync_engine.dart';
 import 'data/remote/auth_repository.dart';
 import 'data/remote/kitchen_repository.dart';
+import 'data/remote/orders_repository.dart';
 import 'data/remote/owner_repository.dart';
 import 'data/remote/pos_repository.dart';
 import 'data/remote/shift_repository.dart';
@@ -127,6 +128,9 @@ class TumbuhApp extends StatelessWidget {
         ),
         RepositoryProvider<OwnerRepository>(
           create: (_) => OwnerRepository(apiClient: apiClient),
+        ),
+        RepositoryProvider<OrdersRepository>(
+          create: (_) => OrdersRepository(apiClient: apiClient),
         ),
       ],
       child: MultiBlocProvider(

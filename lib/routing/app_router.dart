@@ -5,6 +5,7 @@ import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/kds/presentation/screens/kds_screen.dart';
 import '../features/owner/presentation/screens/owner_dashboard_screen.dart';
 import '../features/pos/presentation/screens/pos_tablet_screen.dart';
+import '../features/orders/presentation/screens/orders_screen.dart';
 import '../features/pos/presentation/screens/printer_management_screen.dart';
 import '../features/shift/presentation/screens/shift_screen.dart';
 
@@ -17,6 +18,7 @@ class AppRouter {
   static const String kds = '/kds';
   static const String owner = '/owner';
   static const String shift = '/shift';
+  static const String orders = '/orders';
   static const String printerSettings = '/printer-settings';
   static const String selfOrder = '/order/:tableId';
 
@@ -31,6 +33,10 @@ class AppRouter {
         GoRoute(
           path: setup,
           builder: (context, state) => const OwnerSetupScreen(),
+        ),
+        GoRoute(
+          path: orders,
+          builder: (context, state) => const OrdersScreen(),
         ),
         GoRoute(
           path: pos,

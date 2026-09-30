@@ -397,6 +397,17 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
                 ),
               ),
               const SizedBox(width: 8),
+              // Riwayat Pesanan
+              IconButton(
+                onPressed: () => context.push('/orders'),
+                icon: const Icon(Icons.receipt_long_rounded, color: LpColors.primaryLight),
+                tooltip: 'Riwayat Pesanan',
+                style: IconButton.styleFrom(
+                  backgroundColor: LpColors.surfaceCard,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(width: 8),
               // Printer & Hardware Settings
               IconButton(
                 onPressed: () => context.push('/printer-settings'),
