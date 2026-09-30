@@ -30,6 +30,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosSearchCustomers>(_onSearchCustomers);
     on<PosSelectCustomer>(_onSelectCustomer);
     on<PosClearCustomer>(_onClearCustomer);
+    on<PosApplyVoucher>(_onApplyVoucher);
+    on<PosRemoveVoucher>(_onRemoveVoucher);
     on<PosParkBill>(_onParkBill);
     on<PosRestoreParkedBill>(_onRestoreParkedBill);
     on<PosSubmitPayment>(_onSubmitPayment);
@@ -260,6 +262,47 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       clearCustomer: true,
       customerName: 'Tamu',
       isMember: false,
+    ));
+  }
+
+  Future<void> _onApplyVoucher(
+    PosApplyVoucher event,
+    Emitter<PosState> emit,
+  ) async {
+    emit(state.copyWith(clearVoucherError: true));
+    try {
+      final validation = await posRepository.validateVoucher(
+        code: event.code,
+        orderTotal: state.totals.grossSubtotal,
+      );
+      final totals =
+          _recalculateTotals(state.cartItems, validation.discountAmount);
+      emit(state.copyWith(
+        voucherDiscount: validation.discountAmount,
+        appliedVoucherCode: validation.code,
+        clearVoucherError: true,
+        totals: totals,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        clearVoucher: true,
+        voucherDiscount: 0,
+        voucherError: e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('ValidationException: ', '')
+            .replaceAll('NotFoundException: ', ''),
+      ));
+    }
+  }
+
+  void _onRemoveVoucher(PosRemoveVoucher event, Emitter<PosState> emit) {
+    final totals = _recalculateTotals(state.cartItems, 0);
+    emit(state.copyWith(
+      voucherDiscount: 0,
+      clearVoucher: true,
+      clearVoucherError: true,
+      totals: totals,
     ));
   }
 

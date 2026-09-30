@@ -119,6 +119,18 @@ class PosClearCustomer extends PosEvent {
   const PosClearCustomer();
 }
 
+class PosApplyVoucher extends PosEvent {
+  final String code;
+  const PosApplyVoucher(this.code);
+
+  @override
+  List<Object?> get props => [code];
+}
+
+class PosRemoveVoucher extends PosEvent {
+  const PosRemoveVoucher();
+}
+
 class PosParkBill extends PosEvent {
   const PosParkBill();
 }

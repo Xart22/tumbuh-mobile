@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tumbuh_mobile/data/models/voucher_validation.dart';
 import 'package:tumbuh_mobile/data/remote/pos_repository.dart';
 
 void main() {
@@ -51,6 +52,19 @@ void main() {
       // 22000 base + 6000 modifier reconstructs the original 28000.
       expect(bill.items.first.product.price, 22000);
       expect(bill.items.first.unitPrice, 28000);
+    });
+
+    test('VoucherValidation maps backend validate response', () {
+      final v = VoucherValidation.fromJson({
+        'code': 'HEMAT10',
+        'voucherName': 'Diskon 10%',
+        'discountAmount': 7500.0,
+        'finalTotal': 67500.0,
+      });
+      expect(v.code, 'HEMAT10');
+      expect(v.name, 'Diskon 10%');
+      expect(v.discountAmount, 7500);
+      expect(v.finalTotal, 67500);
     });
 
     test('normalizeTableName matches common table labels', () {

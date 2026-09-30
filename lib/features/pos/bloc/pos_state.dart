@@ -23,6 +23,8 @@ class PosState extends Equatable {
   final bool isMember;
   final List<CustomerSummary> customerResults;
   final int voucherDiscount;
+  final String? appliedVoucherCode;
+  final String? voucherError;
   final List<ParkedBill> parkedBills;
   final OrderTotals totals;
   final PrinterDeviceConfig printerConfig;
@@ -44,6 +46,8 @@ class PosState extends Equatable {
     this.isMember = true,
     this.customerResults = const [],
     this.voucherDiscount = 10000,
+    this.appliedVoucherCode,
+    this.voucherError,
     this.parkedBills = const [],
     this.totals = OrderTotals.zero,
 
@@ -75,6 +79,10 @@ class PosState extends Equatable {
     bool? isMember,
     List<CustomerSummary>? customerResults,
     int? voucherDiscount,
+    String? appliedVoucherCode,
+    bool clearVoucher = false,
+    String? voucherError,
+    bool clearVoucherError = false,
     List<ParkedBill>? parkedBills,
     OrderTotals? totals,
     PrinterDeviceConfig? printerConfig,
@@ -96,6 +104,10 @@ class PosState extends Equatable {
       isMember: isMember ?? this.isMember,
       customerResults: customerResults ?? this.customerResults,
       voucherDiscount: voucherDiscount ?? this.voucherDiscount,
+      appliedVoucherCode:
+          clearVoucher ? null : (appliedVoucherCode ?? this.appliedVoucherCode),
+      voucherError:
+          clearVoucherError ? null : (voucherError ?? this.voucherError),
       parkedBills: parkedBills ?? this.parkedBills,
       totals: totals ?? this.totals,
       printerConfig: printerConfig ?? this.printerConfig,
@@ -120,6 +132,8 @@ class PosState extends Equatable {
     isMember,
     customerResults,
     voucherDiscount,
+    appliedVoucherCode,
+    voucherError,
     parkedBills,
     totals,
     printerConfig,

@@ -18,6 +18,7 @@ import '../models/payment_model.dart';
 import '../models/pos_product.dart';
 import '../models/printer_config.dart';
 import '../models/product_modifier.dart';
+import '../models/voucher_validation.dart';
 import '../../shared/math/order_math.dart';
 
 class ParkedBill {
@@ -463,6 +464,19 @@ class PosRepository {
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Validates a voucher code. Backend: `POST /v1/vouchers/validate`.
+  /// Throws an [ApiException] (with the backend message) when invalid.
+  Future<VoucherValidation> validateVoucher({
+    required String code,
+    required int orderTotal,
+  }) async {
+    final res = await apiClient.dio.post(
+      '/v1/vouchers/validate',
+      data: {'code': code, 'orderTotal': orderTotal},
+    );
+    return VoucherValidation.fromJson(_asMap(res.data));
   }
 
   /// Lookup product by Barcode / SKU: backend exact match -> local catalog.

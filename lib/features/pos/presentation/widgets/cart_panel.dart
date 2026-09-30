@@ -19,6 +19,8 @@ class CartPanel extends StatelessWidget {
   final VoidCallback onParkBill;
   final VoidCallback onOpenPayment;
   final VoidCallback? onSelectCustomer;
+  final VoidCallback? onApplyVoucher;
+  final VoidCallback? onRemoveVoucher;
   final Function(PosPaymentMethod method)? onQuickPay;
 
   const CartPanel({
@@ -35,6 +37,8 @@ class CartPanel extends StatelessWidget {
     required this.onParkBill,
     required this.onOpenPayment,
     this.onSelectCustomer,
+    this.onApplyVoucher,
+    this.onRemoveVoucher,
     this.onQuickPay,
   });
 
@@ -472,19 +476,29 @@ class CartPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // Diskon Voucher Member
-          if (totals.voucherDiscount > 0)
-            Row(
+          // Voucher (tap to add / remove)
+          GestureDetector(
+            onTap: totals.voucherDiscount > 0 ? onRemoveVoucher : onApplyVoucher,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Row(
                     children: [
-                      const Icon(Icons.local_offer_outlined, size: 14, color: LpColors.primaryLight),
+                      Icon(
+                        totals.voucherDiscount > 0
+                            ? Icons.local_offer
+                            : Icons.add_card_rounded,
+                        size: 14,
+                        color: LpColors.primaryLight,
+                      ),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          'Diskon Voucher Member',
+                          totals.voucherDiscount > 0
+                              ? 'Diskon Voucher Member'
+                              : 'Tambah Voucher',
                           overflow: TextOverflow.ellipsis,
                           style: LpTypography.bodySm.copyWith(color: LpColors.primaryLight),
                         ),
@@ -492,15 +506,17 @@ class CartPanel extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(
-                  '-${CurrencyFormatter.format(totals.voucherDiscount)}',
-                  style: LpTypography.dataCurrencySm.copyWith(
-                    color: LpColors.primaryLight,
-                    fontWeight: FontWeight.bold,
+                if (totals.voucherDiscount > 0)
+                  Text(
+                    '-${CurrencyFormatter.format(totals.voucherDiscount)}',
+                    style: LpTypography.dataCurrencySm.copyWith(
+                      color: LpColors.primaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
               ],
             ),
+          ),
           const SizedBox(height: 6),
           // PB1 Pajak Restoran 10%
           Row(

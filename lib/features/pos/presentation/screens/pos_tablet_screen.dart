@@ -10,6 +10,7 @@ import 'package:tumbuh_mobile/features/pos/bloc/pos_event.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_state.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/cart_panel.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/customer_picker_modal.dart';
+import 'package:tumbuh_mobile/features/pos/presentation/widgets/voucher_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/payment_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/product_card.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/product_options_modal.dart';
@@ -153,6 +154,8 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
                       customerName: state.customerName,
                       isMember: state.isMember,
                       onSelectCustomer: () => CustomerPickerModal.show(context),
+                      onApplyVoucher: () => VoucherModal.show(context),
+                      onRemoveVoucher: () => context.read<PosBloc>().add(const PosRemoveVoucher()),
                       parkedBillCount: state.parkedBills.length,
                       onUpdateQuantity: (lineId, delta) {
                         context.read<PosBloc>().add(PosUpdateCartQuantity(lineId: lineId, delta: delta));
