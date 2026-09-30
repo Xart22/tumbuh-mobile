@@ -14,6 +14,13 @@ void main() {
       expect(c.sortOrder, 3);
     });
 
+    test('normalizeTableName matches common table labels', () {
+      expect(PosRepository.normalizeTableName('Meja 04'), '4');
+      expect(PosRepository.normalizeTableName('04'), '4');
+      expect(PosRepository.normalizeTableName('meja-4'), '4');
+      expect(PosRepository.normalizeTableName('Meja 10'), '10');
+    });
+
     test('mapProduct maps basePrice/photoUrl and tolerates null sku', () {
       final p = PosRepository.mapProduct(
         {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
+import '../db/app_database.dart';
 import '../outbox/outbox_dao.dart';
 
 enum SyncStatus {
@@ -47,6 +48,31 @@ class SyncEngine {
     _statusController.close();
   }
 
+  /// Replays an optional chained request (e.g. order -> payment), injecting the
+  /// server order id. Best-effort: skipped when the response carries no id
+  /// (e.g. a 409 replay), so the payment may need a manual retry in that case.
+  Future<void> _replayFollowUp(OutboxEvent event, dynamic responseData) async {
+    if (event.followUpJson == null) return;
+    final followUp = jsonDecode(event.followUpJson!) as Map<String, dynamic>;
+
+    if (responseData is! Map || responseData['id'] is! String) return;
+    final orderId = responseData['id'] as String;
+
+    final body = Map<String, dynamic>.from(
+      (followUp['body'] as Map?)?.cast<String, dynamic>() ?? {},
+    );
+    body['orderId'] = orderId;
+
+    await _apiClient.dio.request(
+      followUp['endpoint'] as String,
+      data: body,
+      options: Options(
+        method: followUp['method'] as String? ?? 'POST',
+        headers: {'Idempotency-Key': '${event.idempotencyKey}:followup'},
+      ),
+    );
+  }
+
   /// Triggers processing of queued outbox events
   Future<void> syncPendingEvents() async {
     if (_isSyncing) return;
@@ -79,18 +105,20 @@ class SyncEngine {
             },
           );
 
-          await _apiClient.dio.request(
+          final response = await _apiClient.dio.request(
             event.endpoint,
             data: payload,
             options: options,
           );
 
-          // Success: mark event as completed
+          await _replayFollowUp(event, response.data);
           await _outboxDao.markCompleted(event.id);
         } on DioException catch (dioError) {
           final statusCode = dioError.response?.statusCode;
-          // If server returned 409 Conflict, it means it was already processed before -> treat as completed
+          // If server returned 409 Conflict, it means it was already processed before -> treat as completed.
+          // The follow-up (e.g. payment) can still be idempotently retried.
           if (statusCode == 409) {
+            await _replayFollowUp(event, dioError.response?.data);
             await _outboxDao.markCompleted(event.id);
           } else {
             await _outboxDao.markFailed(

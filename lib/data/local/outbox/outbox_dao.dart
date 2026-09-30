@@ -15,6 +15,7 @@ class OutboxDao {
     required Map<String, dynamic> payload,
     Map<String, dynamic>? headers,
     String? idempotencyKey,
+    Map<String, dynamic>? followUp,
   }) async {
     final eventId = const Uuid().v4();
     final key = idempotencyKey ?? const Uuid().v4();
@@ -26,6 +27,7 @@ class OutboxDao {
             method: method.toUpperCase(),
             payloadJson: jsonEncode(payload),
             headersJson: Value(headers != null ? jsonEncode(headers) : null),
+            followUpJson: Value(followUp != null ? jsonEncode(followUp) : null),
             idempotencyKey: key,
             status: const Value('pending'),
             createdAt: Value(DateTime.now()),

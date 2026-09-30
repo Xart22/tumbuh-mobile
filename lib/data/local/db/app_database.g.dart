@@ -60,6 +60,17 @@ class $OutboxEventsTable extends OutboxEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _followUpJsonMeta = const VerificationMeta(
+    'followUpJson',
+  );
+  @override
+  late final GeneratedColumn<String> followUpJson = GeneratedColumn<String>(
+    'follow_up_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -135,6 +146,7 @@ class $OutboxEventsTable extends OutboxEvents
     method,
     headersJson,
     payloadJson,
+    followUpJson,
     idempotencyKey,
     status,
     retryCount,
@@ -194,6 +206,15 @@ class $OutboxEventsTable extends OutboxEvents
       );
     } else if (isInserting) {
       context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('follow_up_json')) {
+      context.handle(
+        _followUpJsonMeta,
+        followUpJson.isAcceptableOrUnknown(
+          data['follow_up_json']!,
+          _followUpJsonMeta,
+        ),
+      );
     }
     if (data.containsKey('idempotency_key')) {
       context.handle(
@@ -265,6 +286,10 @@ class $OutboxEventsTable extends OutboxEvents
         DriftSqlType.string,
         data['${effectivePrefix}payload_json'],
       )!,
+      followUpJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}follow_up_json'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -304,6 +329,10 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
   final String method;
   final String? headersJson;
   final String payloadJson;
+
+  /// Optional chained request replayed after this one succeeds, with the
+  /// response `data.id` injected as `orderId` (e.g. order -> payment).
+  final String? followUpJson;
   final String idempotencyKey;
   final String status;
   final int retryCount;
@@ -316,6 +345,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
     required this.method,
     this.headersJson,
     required this.payloadJson,
+    this.followUpJson,
     required this.idempotencyKey,
     required this.status,
     required this.retryCount,
@@ -333,6 +363,9 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       map['headers_json'] = Variable<String>(headersJson);
     }
     map['payload_json'] = Variable<String>(payloadJson);
+    if (!nullToAbsent || followUpJson != null) {
+      map['follow_up_json'] = Variable<String>(followUpJson);
+    }
     map['idempotency_key'] = Variable<String>(idempotencyKey);
     map['status'] = Variable<String>(status);
     map['retry_count'] = Variable<int>(retryCount);
@@ -353,6 +386,9 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           ? const Value.absent()
           : Value(headersJson),
       payloadJson: Value(payloadJson),
+      followUpJson: followUpJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(followUpJson),
       idempotencyKey: Value(idempotencyKey),
       status: Value(status),
       retryCount: Value(retryCount),
@@ -375,6 +411,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       method: serializer.fromJson<String>(json['method']),
       headersJson: serializer.fromJson<String?>(json['headersJson']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      followUpJson: serializer.fromJson<String?>(json['followUpJson']),
       idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
       status: serializer.fromJson<String>(json['status']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
@@ -392,6 +429,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       'method': serializer.toJson<String>(method),
       'headersJson': serializer.toJson<String?>(headersJson),
       'payloadJson': serializer.toJson<String>(payloadJson),
+      'followUpJson': serializer.toJson<String?>(followUpJson),
       'idempotencyKey': serializer.toJson<String>(idempotencyKey),
       'status': serializer.toJson<String>(status),
       'retryCount': serializer.toJson<int>(retryCount),
@@ -407,6 +445,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
     String? method,
     Value<String?> headersJson = const Value.absent(),
     String? payloadJson,
+    Value<String?> followUpJson = const Value.absent(),
     String? idempotencyKey,
     String? status,
     int? retryCount,
@@ -419,6 +458,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
     method: method ?? this.method,
     headersJson: headersJson.present ? headersJson.value : this.headersJson,
     payloadJson: payloadJson ?? this.payloadJson,
+    followUpJson: followUpJson.present ? followUpJson.value : this.followUpJson,
     idempotencyKey: idempotencyKey ?? this.idempotencyKey,
     status: status ?? this.status,
     retryCount: retryCount ?? this.retryCount,
@@ -437,6 +477,9 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       payloadJson: data.payloadJson.present
           ? data.payloadJson.value
           : this.payloadJson,
+      followUpJson: data.followUpJson.present
+          ? data.followUpJson.value
+          : this.followUpJson,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -458,6 +501,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           ..write('method: $method, ')
           ..write('headersJson: $headersJson, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('followUpJson: $followUpJson, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
@@ -475,6 +519,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
     method,
     headersJson,
     payloadJson,
+    followUpJson,
     idempotencyKey,
     status,
     retryCount,
@@ -491,6 +536,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           other.method == this.method &&
           other.headersJson == this.headersJson &&
           other.payloadJson == this.payloadJson &&
+          other.followUpJson == this.followUpJson &&
           other.idempotencyKey == this.idempotencyKey &&
           other.status == this.status &&
           other.retryCount == this.retryCount &&
@@ -505,6 +551,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
   final Value<String> method;
   final Value<String?> headersJson;
   final Value<String> payloadJson;
+  final Value<String?> followUpJson;
   final Value<String> idempotencyKey;
   final Value<String> status;
   final Value<int> retryCount;
@@ -518,6 +565,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     this.method = const Value.absent(),
     this.headersJson = const Value.absent(),
     this.payloadJson = const Value.absent(),
+    this.followUpJson = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
@@ -532,6 +580,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     required String method,
     this.headersJson = const Value.absent(),
     required String payloadJson,
+    this.followUpJson = const Value.absent(),
     required String idempotencyKey,
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
@@ -550,6 +599,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     Expression<String>? method,
     Expression<String>? headersJson,
     Expression<String>? payloadJson,
+    Expression<String>? followUpJson,
     Expression<String>? idempotencyKey,
     Expression<String>? status,
     Expression<int>? retryCount,
@@ -564,6 +614,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
       if (method != null) 'method': method,
       if (headersJson != null) 'headers_json': headersJson,
       if (payloadJson != null) 'payload_json': payloadJson,
+      if (followUpJson != null) 'follow_up_json': followUpJson,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (status != null) 'status': status,
       if (retryCount != null) 'retry_count': retryCount,
@@ -580,6 +631,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     Value<String>? method,
     Value<String?>? headersJson,
     Value<String>? payloadJson,
+    Value<String?>? followUpJson,
     Value<String>? idempotencyKey,
     Value<String>? status,
     Value<int>? retryCount,
@@ -594,6 +646,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
       method: method ?? this.method,
       headersJson: headersJson ?? this.headersJson,
       payloadJson: payloadJson ?? this.payloadJson,
+      followUpJson: followUpJson ?? this.followUpJson,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
@@ -621,6 +674,9 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     }
     if (payloadJson.present) {
       map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (followUpJson.present) {
+      map['follow_up_json'] = Variable<String>(followUpJson.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -654,6 +710,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
           ..write('method: $method, ')
           ..write('headersJson: $headersJson, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('followUpJson: $followUpJson, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
@@ -1729,6 +1786,358 @@ class CachedProductsCompanion extends UpdateCompanion<CachedProduct> {
   }
 }
 
+class $CachedTablesTable extends CachedTables
+    with TableInfo<$CachedTablesTable, CachedTable> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedTablesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _areaIdMeta = const VerificationMeta('areaId');
+  @override
+  late final GeneratedColumn<String> areaId = GeneratedColumn<String>(
+    'area_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, areaId, status, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_tables';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedTable> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('area_id')) {
+      context.handle(
+        _areaIdMeta,
+        areaId.isAcceptableOrUnknown(data['area_id']!, _areaIdMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CachedTable map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedTable(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      areaId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}area_id'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedTablesTable createAlias(String alias) {
+    return $CachedTablesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedTable extends DataClass implements Insertable<CachedTable> {
+  final String id;
+  final String name;
+  final String? areaId;
+  final String? status;
+  final DateTime updatedAt;
+  const CachedTable({
+    required this.id,
+    required this.name,
+    this.areaId,
+    this.status,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || areaId != null) {
+      map['area_id'] = Variable<String>(areaId);
+    }
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  CachedTablesCompanion toCompanion(bool nullToAbsent) {
+    return CachedTablesCompanion(
+      id: Value(id),
+      name: Value(name),
+      areaId: areaId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(areaId),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CachedTable.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedTable(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      areaId: serializer.fromJson<String?>(json['areaId']),
+      status: serializer.fromJson<String?>(json['status']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'areaId': serializer.toJson<String?>(areaId),
+      'status': serializer.toJson<String?>(status),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  CachedTable copyWith({
+    String? id,
+    String? name,
+    Value<String?> areaId = const Value.absent(),
+    Value<String?> status = const Value.absent(),
+    DateTime? updatedAt,
+  }) => CachedTable(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    areaId: areaId.present ? areaId.value : this.areaId,
+    status: status.present ? status.value : this.status,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CachedTable copyWithCompanion(CachedTablesCompanion data) {
+    return CachedTable(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      areaId: data.areaId.present ? data.areaId.value : this.areaId,
+      status: data.status.present ? data.status.value : this.status,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedTable(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('areaId: $areaId, ')
+          ..write('status: $status, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, areaId, status, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedTable &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.areaId == this.areaId &&
+          other.status == this.status &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CachedTablesCompanion extends UpdateCompanion<CachedTable> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> areaId;
+  final Value<String?> status;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const CachedTablesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.areaId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedTablesCompanion.insert({
+    required String id,
+    required String name,
+    this.areaId = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       updatedAt = Value(updatedAt);
+  static Insertable<CachedTable> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? areaId,
+    Expression<String>? status,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (areaId != null) 'area_id': areaId,
+      if (status != null) 'status': status,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedTablesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String?>? areaId,
+    Value<String?>? status,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedTablesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      areaId: areaId ?? this.areaId,
+      status: status ?? this.status,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (areaId.present) {
+      map['area_id'] = Variable<String>(areaId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedTablesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('areaId: $areaId, ')
+          ..write('status: $status, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CachedCustomersTable extends CachedCustomers
     with TableInfo<$CachedCustomersTable, CachedCustomer> {
   @override
@@ -2250,6 +2659,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $CachedProductsTable cachedProducts = $CachedProductsTable(this);
+  late final $CachedTablesTable cachedTables = $CachedTablesTable(this);
   late final $CachedCustomersTable cachedCustomers = $CachedCustomersTable(
     this,
   );
@@ -2261,6 +2671,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     outboxEvents,
     cachedCategories,
     cachedProducts,
+    cachedTables,
     cachedCustomers,
   ];
 }
@@ -2272,6 +2683,7 @@ typedef $$OutboxEventsTableCreateCompanionBuilder =
       required String method,
       Value<String?> headersJson,
       required String payloadJson,
+      Value<String?> followUpJson,
       required String idempotencyKey,
       Value<String> status,
       Value<int> retryCount,
@@ -2287,6 +2699,7 @@ typedef $$OutboxEventsTableUpdateCompanionBuilder =
       Value<String> method,
       Value<String?> headersJson,
       Value<String> payloadJson,
+      Value<String?> followUpJson,
       Value<String> idempotencyKey,
       Value<String> status,
       Value<int> retryCount,
@@ -2327,6 +2740,11 @@ class $$OutboxEventsTableFilterComposer
 
   ColumnFilters<String> get payloadJson => $composableBuilder(
     column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get followUpJson => $composableBuilder(
+    column: $table.followUpJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2395,6 +2813,11 @@ class $$OutboxEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get followUpJson => $composableBuilder(
+    column: $table.followUpJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -2451,6 +2874,11 @@ class $$OutboxEventsTableAnnotationComposer
 
   GeneratedColumn<String> get payloadJson => $composableBuilder(
     column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get followUpJson => $composableBuilder(
+    column: $table.followUpJson,
     builder: (column) => column,
   );
 
@@ -2513,6 +2941,7 @@ class $$OutboxEventsTableTableManager
                 Value<String> method = const Value.absent(),
                 Value<String?> headersJson = const Value.absent(),
                 Value<String> payloadJson = const Value.absent(),
+                Value<String?> followUpJson = const Value.absent(),
                 Value<String> idempotencyKey = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
@@ -2526,6 +2955,7 @@ class $$OutboxEventsTableTableManager
                 method: method,
                 headersJson: headersJson,
                 payloadJson: payloadJson,
+                followUpJson: followUpJson,
                 idempotencyKey: idempotencyKey,
                 status: status,
                 retryCount: retryCount,
@@ -2541,6 +2971,7 @@ class $$OutboxEventsTableTableManager
                 required String method,
                 Value<String?> headersJson = const Value.absent(),
                 required String payloadJson,
+                Value<String?> followUpJson = const Value.absent(),
                 required String idempotencyKey,
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
@@ -2554,6 +2985,7 @@ class $$OutboxEventsTableTableManager
                 method: method,
                 headersJson: headersJson,
                 payloadJson: payloadJson,
+                followUpJson: followUpJson,
                 idempotencyKey: idempotencyKey,
                 status: status,
                 retryCount: retryCount,
@@ -3136,6 +3568,206 @@ typedef $$CachedProductsTableProcessedTableManager =
       CachedProduct,
       PrefetchHooks Function()
     >;
+typedef $$CachedTablesTableCreateCompanionBuilder =
+    CachedTablesCompanion Function({
+      required String id,
+      required String name,
+      Value<String?> areaId,
+      Value<String?> status,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedTablesTableUpdateCompanionBuilder =
+    CachedTablesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String?> areaId,
+      Value<String?> status,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedTablesTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedTablesTable> {
+  $$CachedTablesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get areaId => $composableBuilder(
+    column: $table.areaId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedTablesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedTablesTable> {
+  $$CachedTablesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get areaId => $composableBuilder(
+    column: $table.areaId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedTablesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedTablesTable> {
+  $$CachedTablesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get areaId =>
+      $composableBuilder(column: $table.areaId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CachedTablesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedTablesTable,
+          CachedTable,
+          $$CachedTablesTableFilterComposer,
+          $$CachedTablesTableOrderingComposer,
+          $$CachedTablesTableAnnotationComposer,
+          $$CachedTablesTableCreateCompanionBuilder,
+          $$CachedTablesTableUpdateCompanionBuilder,
+          (
+            CachedTable,
+            BaseReferences<_$AppDatabase, $CachedTablesTable, CachedTable>,
+          ),
+          CachedTable,
+          PrefetchHooks Function()
+        > {
+  $$CachedTablesTableTableManager(_$AppDatabase db, $CachedTablesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedTablesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedTablesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedTablesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> areaId = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedTablesCompanion(
+                id: id,
+                name: name,
+                areaId: areaId,
+                status: status,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String?> areaId = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CachedTablesCompanion.insert(
+                id: id,
+                name: name,
+                areaId: areaId,
+                status: status,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedTablesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedTablesTable,
+      CachedTable,
+      $$CachedTablesTableFilterComposer,
+      $$CachedTablesTableOrderingComposer,
+      $$CachedTablesTableAnnotationComposer,
+      $$CachedTablesTableCreateCompanionBuilder,
+      $$CachedTablesTableUpdateCompanionBuilder,
+      (
+        CachedTable,
+        BaseReferences<_$AppDatabase, $CachedTablesTable, CachedTable>,
+      ),
+      CachedTable,
+      PrefetchHooks Function()
+    >;
 typedef $$CachedCustomersTableCreateCompanionBuilder =
     CachedCustomersCompanion Function({
       required String id,
@@ -3413,6 +4045,8 @@ class $AppDatabaseManager {
       $$CachedCategoriesTableTableManager(_db, _db.cachedCategories);
   $$CachedProductsTableTableManager get cachedProducts =>
       $$CachedProductsTableTableManager(_db, _db.cachedProducts);
+  $$CachedTablesTableTableManager get cachedTables =>
+      $$CachedTablesTableTableManager(_db, _db.cachedTables);
   $$CachedCustomersTableTableManager get cachedCustomers =>
       $$CachedCustomersTableTableManager(_db, _db.cachedCustomers);
 }

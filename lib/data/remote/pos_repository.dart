@@ -286,6 +286,15 @@ class PosRepository {
     );
   }
 
+  /// Normalizes a table label so "Meja 04", "04" and "meja-4" all match.
+  @visibleForTesting
+  static String normalizeTableName(String value) {
+    var s = value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (s.startsWith('meja')) s = s.substring(4);
+    s = s.replaceFirst(RegExp(r'^0+'), '');
+    return s.isEmpty ? '0' : s;
+  }
+
   static String _mapOrderType(String orderType) {
     final s = orderType.toLowerCase();
     if (s.contains('delivery')) return 'delivery';
@@ -309,12 +318,10 @@ class PosRepository {
     }
   }
 
-  /// Backend `POST /v1/payments` (CreatePaymentDto): single or split.
-  Future<void> _createPayment(String orderId, OrderPaymentDetails payment) async {
-    final Map<String, dynamic> body;
+  /// Backend CreatePaymentDto body, without `orderId` (added at send time).
+  static Map<String, dynamic> _paymentBody(OrderPaymentDetails payment) {
     if (payment.isSplitPayment && payment.splits.isNotEmpty) {
-      body = {
-        'orderId': orderId,
+      return {
         'payments': payment.splits
             .map((s) => {
                   'method': _mapPaymentMethod(s.method),
@@ -322,17 +329,17 @@ class PosRepository {
                 })
             .toList(),
       };
-    } else {
-      body = {
-        'orderId': orderId,
-        'method': _mapPaymentMethod(payment.primaryMethod),
-        'amount': payment.grandTotal,
-      };
     }
+    return {
+      'method': _mapPaymentMethod(payment.primaryMethod),
+      'amount': payment.grandTotal,
+    };
+  }
 
+  Future<void> _createPayment(String orderId, OrderPaymentDetails payment) async {
     await apiClient.dio.post(
       '/v1/payments',
-      data: body,
+      data: {'orderId': orderId, ..._paymentBody(payment)},
       options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
     );
   }
@@ -542,6 +549,61 @@ class PosRepository {
         .toList();
   }
 
+  Future<Map<String, String>> _loadTablesByName() async {
+    if (fetchFromNetwork) {
+      try {
+        final res = await apiClient.getWithRetry(
+          '/v1/tables',
+          queryParameters: {'limit': 100},
+        );
+        final items = (res.data as Map<String, dynamic>)['items'] as List<dynamic>;
+        final tables = items
+            .map((e) => (
+                  id: (e as Map<String, dynamic>)['id'] as String,
+                  name: e['name'] as String,
+                  areaId: e['areaId'] as String?,
+                  status: e['status'] as String?,
+                ))
+            .toList();
+        await _cacheTables(tables);
+        return {
+          for (final t in tables) normalizeTableName(t.name): t.id,
+        };
+      } catch (_) {
+        // fall through to cache
+      }
+    }
+
+    final rows = await database.select(database.cachedTables).get();
+    return {for (final r in rows) normalizeTableName(r.name): r.id};
+  }
+
+  /// Resolves a POS table label (e.g. "04") to the backend table UUID.
+  Future<String?> resolveTableId(String tableNumber) async {
+    final byName = await _loadTablesByName();
+    return byName[normalizeTableName(tableNumber)];
+  }
+
+  Future<void> _cacheTables(
+    List<({String id, String name, String? areaId, String? status})> tables,
+  ) async {
+    await database.batch((batch) {
+      batch.deleteAll(database.cachedTables);
+      batch.insertAll(
+        database.cachedTables,
+        tables
+            .map((t) => CachedTablesCompanion.insert(
+                  id: t.id,
+                  name: t.name,
+                  areaId: Value(t.areaId),
+                  status: Value(t.status),
+                  updatedAt: DateTime.now(),
+                ))
+            .toList(),
+      );
+    });
+  }
+
   /// Park Bill (Hold Bill - F2)
   Future<ParkedBill> parkBill({
     required String tableNumber,
@@ -600,6 +662,11 @@ class PosRepository {
       if (totals.totalDiscount > 0) 'discountName': 'Diskon',
     };
 
+    if (_mapOrderType(orderType) == 'dine_in') {
+      final tableId = await resolveTableId(tableNumber);
+      if (tableId != null) payload['tableId'] = tableId;
+    }
+
     bool isOnlineSuccess = false;
     try {
       final response = await apiClient.dio.post(
@@ -624,6 +691,12 @@ class PosRepository {
         method: 'POST',
         payload: payload,
         idempotencyKey: idempotencyKey,
+        // Chain the payment once the order is replayed and its id is known.
+        followUp: {
+          'endpoint': '/v1/payments',
+          'method': 'POST',
+          'body': _paymentBody(payment),
+        },
       );
     }
 

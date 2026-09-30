@@ -10,6 +10,9 @@ class OutboxEvents extends Table {
   TextColumn get method => text()(); // POST, PUT, PATCH, DELETE
   TextColumn get headersJson => text().nullable()();
   TextColumn get payloadJson => text()();
+  /// Optional chained request replayed after this one succeeds, with the
+  /// response `data.id` injected as `orderId` (e.g. order -> payment).
+  TextColumn get followUpJson => text().nullable()();
   TextColumn get idempotencyKey => text()();
   TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, syncing, completed, failed
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
@@ -52,6 +55,18 @@ class CachedProducts extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Offline cache for dine-in tables (number -> backend UUID)
+class CachedTables extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get areaId => text().nullable()();
+  TextColumn get status => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Offline cache for customers
 class CachedCustomers extends Table {
   TextColumn get id => text()();
@@ -71,6 +86,7 @@ class CachedCustomers extends Table {
   OutboxEvents,
   CachedCategories,
   CachedProducts,
+  CachedTables,
   CachedCustomers,
 ])
 class AppDatabase extends _$AppDatabase {
