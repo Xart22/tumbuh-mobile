@@ -55,6 +55,28 @@ class ShiftModel {
 
   bool get isOpen => status == 'open';
 
+  /// Maps the backend `mapShift` payload (tumbuh-be `GET/POST/PATCH /v1/shifts`).
+  factory ShiftModel.fromBackend(Map<String, dynamic> json) {
+    return ShiftModel(
+      id: json['id'] as String,
+      shiftNumber: 1,
+      shiftName: json['shiftName'] as String? ?? 'Shift',
+      cashierId: json['employeeId'] as String? ?? '',
+      cashierName: json['employeeName'] as String? ?? 'Kasir',
+      outletId: json['outletId'] as String? ?? '',
+      outletName: 'Outlet',
+      deviceId: json['deviceId'] as String? ?? '',
+      deviceName: 'Tablet Kasir',
+      startTime: DateTime.parse(json['openedAt'] as String),
+      endTime: json['closedAt'] != null
+          ? DateTime.parse(json['closedAt'] as String)
+          : null,
+      initialFloat: (json['openingCash'] as num?)?.toInt() ?? 0,
+      actualCashCount: (json['closingCash'] as num?)?.toInt(),
+      status: json['status'] as String? ?? 'open',
+    );
+  }
+
   factory ShiftModel.fromJson(Map<String, dynamic> json) {
     return ShiftModel(
       id: json['id'] as String,

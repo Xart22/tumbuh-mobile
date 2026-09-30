@@ -6,10 +6,15 @@ import '../../../../routing/app_router.dart';
 import '../../../../data/models/shift_model.dart';
 import '../../../../shared/formatters/currency_formatter.dart';
 import '../../../../shared/theme/app_typography.dart';
+import '../../../auth/bloc/auth_bloc.dart';
 import '../../bloc/shift_bloc.dart';
 
 class ShiftScreen extends StatefulWidget {
-  const ShiftScreen({super.key});
+  /// When true (entry from cashier login), an already-open shift sends the
+  /// cashier straight to POS instead of showing the close/reconcile view.
+  final bool autoEnterPos;
+
+  const ShiftScreen({super.key, this.autoEnterPos = false});
 
   @override
   State<ShiftScreen> createState() => _ShiftScreenState();
@@ -40,6 +45,10 @@ class _ShiftScreenState extends State<ShiftScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<ShiftBloc, ShiftState>(
       listener: (context, state) {
+        if (state is ShiftActiveLoaded && widget.autoEnterPos) {
+          context.go(AppRouter.pos);
+          return;
+        }
         if (state is ShiftCloseSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -181,11 +190,14 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     final floatValue = int.tryParse(_floatController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 500000;
+                    final auth = context.read<AuthBloc>().state;
+                    final user =
+                        auth is AuthKasirAuthenticated ? auth.user : null;
                     context.read<ShiftBloc>().add(
                           ShiftOpenRequested(
                             initialFloat: floatValue,
-                            cashierId: 'cashier_01',
-                            cashierName: 'Barista Rama',
+                            cashierId: user?.id ?? 'cashier_01',
+                            cashierName: user?.name ?? 'Kasir',
                             shiftName: 'Shift 1 Pagi',
                           ),
                         );

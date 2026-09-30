@@ -87,5 +87,27 @@ void main() {
       final surplusShift = baseShift.copyWith(actualCashCount: 2520000);
       expect(surplusShift.variance, 20000);
     });
+
+    test('Maps backend mapShift payload', () {
+      final shift = ShiftModel.fromBackend({
+        'id': 'sh_1',
+        'outletId': 'out_1',
+        'employeeId': 'emp_1',
+        'employeeName': 'Rama',
+        'shiftName': 'Shift Pagi',
+        'openedAt': '2026-10-01T07:30:00.000Z',
+        'closedAt': null,
+        'openingCash': 500000,
+        'closingCash': null,
+        'expectedCash': null,
+        'status': 'open',
+      });
+      expect(shift.id, 'sh_1');
+      expect(shift.cashierId, 'emp_1');
+      expect(shift.cashierName, 'Rama');
+      expect(shift.initialFloat, 500000);
+      expect(shift.endTime, isNull);
+      expect(shift.isOpen, isTrue);
+    });
   });
 }

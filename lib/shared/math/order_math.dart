@@ -186,6 +186,10 @@ class OrderMath {
     int voucherDiscount = 0,
     double taxPercent = 10.0,
     double serviceChargePercent = 0.0,
+    int roundingBase = 0,
+    // Backend applies tax and service independently on the after-discount
+    // subtotal (see computeOrderTotals in tumbuh-be), not tax-on-service.
+    bool taxIncludesService = false,
   }) {
     return computeOrderTotals(
       OrderCalculationParams(
@@ -201,6 +205,8 @@ class OrderMath {
         orderDiscountNominal: voucherDiscount,
         taxRate: taxPercent / 100.0,
         serviceChargeRate: serviceChargePercent / 100.0,
+        roundingBase: roundingBase,
+        taxIncludesService: taxIncludesService,
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/cart_item.dart';
+import '../../../data/models/outlet_pricing.dart';
+import '../../../data/models/pos_product.dart';
 import '../../../data/models/product_modifier.dart';
 import '../../../data/remote/pos_repository.dart';
 
@@ -9,6 +11,9 @@ import 'pos_state.dart';
 
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
+
+  /// Active outlet pricing; refreshed on menu load, defaults until then.
+  OutletPricing _pricing = OutletPricing.legacy;
 
   PosBloc({required this.posRepository}) : super(const PosState()) {
     on<PosLoadMenu>(_onLoadMenu);
@@ -41,55 +46,61 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     return OrderMath.calculateDraft(
       items: orderDraftItems,
       voucherDiscount: voucherDiscount,
-      taxPercent: 10,
-      serviceChargePercent: 0,
+      taxPercent: _pricing.taxEnabled ? _pricing.taxRate : 0,
+      serviceChargePercent:
+          _pricing.serviceChargeEnabled ? _pricing.serviceChargeRate : 0,
+      roundingBase: _pricing.roundingBase,
     );
   }
 
   Future<void> _onLoadMenu(PosLoadMenu event, Emitter<PosState> emit) async {
     emit(state.copyWith(status: PosStatus.loading));
     try {
+      _pricing = await posRepository.getOutletPricing() ?? OutletPricing.legacy;
       final categories = await posRepository.getCategories();
       final products = await posRepository.getProducts();
 
-      // Initialize default cart items matching Stitch Screen 2d1abb020f314b258eae5cbb582c1616
-      final arenProd = products.firstWhere(
-        (p) => p.sku == 'KOP-AREN-01',
-        orElse: () => products.first,
-      );
-      final croissantProd = products.firstWhere(
-        (p) => p.sku == 'PAS-ALM-01',
-        orElse: () => products[4],
-      );
-      final americanoProd = products.firstWhere(
-        (p) => p.sku == 'KOP-AME-02',
-        orElse: () => products[1],
-      );
+      // Demo cart only when the bundled seed SKUs are present. With a real
+      // backend catalog these SKUs differ, so the cart starts empty instead of
+      // fabricating lines. ponytail: drop entirely once seed fallback is gone.
+      PosProduct? bySku(String sku) {
+        for (final p in products) {
+          if (p.sku == sku) return p;
+        }
+        return null;
+      }
 
-      final initialCart = [
-        CartItem(
-          id: 'cart-line-1',
-          product: arenProd,
-          quantity: 1,
-          selectedModifiers: const [
-            ModifierOption(id: 'sugar_50', name: 'Less Sugar 50%', priceDelta: 0),
-            ModifierOption(id: 'milk_oat', name: 'Oat Milk Barista', priceDelta: 6000),
-          ],
-        ),
-        CartItem(
-          id: 'cart-line-2',
-          product: croissantProd,
-          quantity: 1,
-          notes: 'Hangatkan / Toasting',
-        ),
-        CartItem(
-          id: 'cart-line-3',
-          product: americanoProd,
-          quantity: 1,
-          selectedModifiers: const [
-            ModifierOption(id: 'top_syrup', name: 'Syrup Hazelnut', priceDelta: 4000),
-          ],
-        ),
+      final arenProd = bySku('KOP-AREN-01');
+      final croissantProd = bySku('PAS-ALM-01');
+      final americanoProd = bySku('KOP-AME-02');
+
+      final initialCart = <CartItem>[
+        if (arenProd != null)
+          CartItem(
+            id: 'cart-line-1',
+            product: arenProd,
+            quantity: 1,
+            selectedModifiers: const [
+              ModifierOption(id: 'sugar_50', name: 'Less Sugar 50%', priceDelta: 0),
+              ModifierOption(id: 'milk_oat', name: 'Oat Milk Barista', priceDelta: 6000),
+            ],
+          ),
+        if (croissantProd != null)
+          CartItem(
+            id: 'cart-line-2',
+            product: croissantProd,
+            quantity: 1,
+            notes: 'Hangatkan / Toasting',
+          ),
+        if (americanoProd != null)
+          CartItem(
+            id: 'cart-line-3',
+            product: americanoProd,
+            quantity: 1,
+            selectedModifiers: const [
+              ModifierOption(id: 'top_syrup', name: 'Syrup Hazelnut', priceDelta: 4000),
+            ],
+          ),
       ];
 
       final totals = _recalculateTotals(initialCart, state.voucherDiscount);

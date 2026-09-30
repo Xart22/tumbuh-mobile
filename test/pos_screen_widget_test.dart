@@ -30,6 +30,7 @@ void main() {
       database: inMemoryDb,
       outboxDao: outboxDao,
       printerService: printerService,
+      fetchFromNetwork: false,
     );
     final posBloc = PosBloc(posRepository: posRepository)..add(const PosLoadMenu());
 

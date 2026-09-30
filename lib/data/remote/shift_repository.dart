@@ -22,22 +22,22 @@ class ShiftRepository {
         _deviceService = deviceService,
         _outboxDao = outboxDao;
 
-  /// Retrieves currently active shift for this bound device
+  /// Retrieves currently open shift for this outlet.
+  /// Backend: `GET /v1/shifts/current` -> `{currentShift|null, recap}`.
   Future<ShiftModel?> getCurrentShift() async {
     final deviceId = await _deviceService.getOrCreateDeviceId();
 
     try {
-      final response = await _apiClient.dio.get(
-        '/v1/shifts/current',
-        queryParameters: {'deviceId': deviceId},
-      );
+      final response = await _apiClient.dio.get('/v1/shifts/current');
+      final data = response.data as Map<String, dynamic>?;
+      final current = data?['currentShift'];
 
-      if (response.data == null) {
+      if (current == null) {
         await _storage.clearShift();
         return null;
       }
 
-      final shift = ShiftModel.fromJson(response.data as Map<String, dynamic>);
+      final shift = ShiftModel.fromBackend(current as Map<String, dynamic>);
       await _storage.saveActiveShiftId(shift.id);
       return shift;
     } on ApiException catch (e) {
@@ -80,15 +80,11 @@ class ShiftRepository {
     final newShiftId = 'shift_${const Uuid().v4()}';
     final effectiveShiftName = shiftName ?? 'Shift 1 Pagi';
 
+    // Backend OpenShiftDto: employeeId + optional shiftName/openingCash.
     final payload = {
-      'id': newShiftId,
-      'deviceId': deviceId,
-      'outletId': outletId,
-      'cashierId': cashierId,
-      'cashierName': cashierName,
+      'employeeId': cashierId,
       'shiftName': effectiveShiftName,
-      'initialFloat': initialFloat,
-      'startTime': DateTime.now().toIso8601String(),
+      'openingCash': initialFloat,
     };
 
     try {
@@ -97,7 +93,7 @@ class ShiftRepository {
         data: payload,
       );
 
-      final shift = ShiftModel.fromJson(response.data as Map<String, dynamic>);
+      final shift = ShiftModel.fromBackend(response.data as Map<String, dynamic>);
       await _storage.saveActiveShiftId(shift.id);
       return shift;
     } on ApiException catch (e) {
@@ -140,31 +136,24 @@ class ShiftRepository {
     String? supervisorPin,
     Map<String, int>? denominationBreakdown,
   }) async {
-    final payload = {
-      'shiftId': shiftId,
-      'actualCashCount': actualCash,
-      'handoverNotes': handoverNotes,
-      'varianceReason': varianceReason,
-      'supervisorPin': supervisorPin,
-      'denominations': denominationBreakdown,
-      'endTime': DateTime.now().toIso8601String(),
-    };
+    // Backend CloseShiftDto: closingCash only.
+    final payload = {'closingCash': actualCash};
 
     try {
-      final response = await _apiClient.dio.post(
-        '/v1/shifts/close',
+      final response = await _apiClient.dio.patch(
+        '/v1/shifts/$shiftId/close',
         data: payload,
       );
 
-      final shift = ShiftModel.fromJson(response.data as Map<String, dynamic>);
+      final shift = ShiftModel.fromBackend(response.data as Map<String, dynamic>);
       await _storage.clearShift();
       return shift;
     } on ApiException catch (e) {
       if (e is NetworkOfflineException) {
         // Enqueue into outbox
         await _outboxDao.enqueue(
-          endpoint: '/v1/shifts/close',
-          method: 'POST',
+          endpoint: '/v1/shifts/$shiftId/close',
+          method: 'PATCH',
           payload: payload,
         );
 

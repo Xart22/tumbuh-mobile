@@ -210,6 +210,7 @@ void main() {
         database: inMemoryDb,
         outboxDao: outboxDao,
         printerService: printerService,
+        fetchFromNetwork: false,
       );
       posBloc = PosBloc(posRepository: posRepository);
     });

@@ -1,10 +1,18 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:uuid/uuid.dart';
 
 import '../../core/network/api_client.dart';
+import '../../core/network/api_exceptions.dart';
 import '../../core/printer/thermal_printer_service.dart';
+import '../../core/security/secure_storage_service.dart';
 import '../local/db/app_database.dart';
 import '../local/outbox/outbox_dao.dart';
 import '../models/cart_item.dart';
+import '../models/outlet_pricing.dart';
 import '../models/payment_model.dart';
 import '../models/pos_product.dart';
 import '../models/printer_config.dart';
@@ -36,6 +44,11 @@ class PosRepository {
   final AppDatabase database;
   final OutboxDao outboxDao;
   final ThermalPrinterService printerService;
+  final SecureStorageService? storage;
+
+  /// When false, catalog reads skip the backend and use cache/seed only.
+  /// Tests set this false so a developer's local backend can't alter results.
+  final bool fetchFromNetwork;
 
   final List<ParkedBill> _parkedBills = [];
 
@@ -44,7 +57,20 @@ class PosRepository {
     required this.database,
     required this.outboxDao,
     required this.printerService,
+    this.storage,
+    this.fetchFromNetwork = true,
   });
+
+  /// Cached outlet pricing (tax/service/rounding), or null when unavailable.
+  Future<OutletPricing?> getOutletPricing() async {
+    final json = await storage?.getOutletPricing();
+    if (json == null || json.isEmpty) return null;
+    try {
+      return OutletPricing.fromJson(jsonDecode(json) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Standard Coffee Shop Seed Categories matching Stitch Design
   static const List<PosCategory> defaultCategories = [
@@ -233,9 +259,135 @@ class PosRepository {
     ),
   ];
 
-  /// Get Categories (cached or fallback to seed)
+  @visibleForTesting
+  static PosCategory mapCategory(Map<String, dynamic> json) => PosCategory(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        icon: '☕',
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      );
+
+  @visibleForTesting
+  static PosProduct mapProduct(
+    Map<String, dynamic> json, {
+    String categoryName = 'Lainnya',
+  }) {
+    return PosProduct(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      sku: (json['sku'] as String?) ?? '',
+      barcode: json['barcode'] as String?,
+      price: (json['basePrice'] as num?)?.toInt() ?? 0,
+      categoryId: (json['categoryId'] as String?) ?? '',
+      categoryName: categoryName,
+      isAvailable: json['isAvailable'] as bool? ?? true,
+      imageUrl: json['photoUrl'] as String?,
+    );
+  }
+
+  static String _mapOrderType(String orderType) {
+    final s = orderType.toLowerCase();
+    if (s.contains('delivery')) return 'delivery';
+    if (s.contains('take') || s.contains('away') || s.contains('bungkus')) {
+      return 'take_away';
+    }
+    return 'dine_in';
+  }
+
+  static String _mapPaymentMethod(PosPaymentMethod method) {
+    switch (method) {
+      case PosPaymentMethod.cash:
+        return 'cash';
+      case PosPaymentMethod.qris:
+        return 'qris_dynamic';
+      case PosPaymentMethod.debit:
+        return 'debit';
+      case PosPaymentMethod.transfer:
+        // Backend has no bank-transfer method yet; treat as immediate non-cash.
+        return 'debit';
+    }
+  }
+
+  /// Backend `POST /v1/payments` (CreatePaymentDto): single or split.
+  Future<void> _createPayment(String orderId, OrderPaymentDetails payment) async {
+    final Map<String, dynamic> body;
+    if (payment.isSplitPayment && payment.splits.isNotEmpty) {
+      body = {
+        'orderId': orderId,
+        'payments': payment.splits
+            .map((s) => {
+                  'method': _mapPaymentMethod(s.method),
+                  'amount': s.amount,
+                })
+            .toList(),
+      };
+    } else {
+      body = {
+        'orderId': orderId,
+        'method': _mapPaymentMethod(payment.primaryMethod),
+        'amount': payment.grandTotal,
+      };
+    }
+
+    await apiClient.dio.post(
+      '/v1/payments',
+      data: body,
+      options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+    );
+  }
+
+  static bool _isOfflineError(Object error) {
+    if (error is NetworkOfflineException) return true;
+    if (error is DioException) {
+      return error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.error is NetworkOfflineException;
+    }
+    return false;
+  }
+
+  List<PosCategory> _categoriesFromEnvelope(dynamic data) {
+    final items = (data as Map<String, dynamic>)['items'] as List<dynamic>;
+    return items
+        .map((e) => mapCategory(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  List<PosProduct> _productsFromEnvelope(
+    dynamic data,
+    Map<String, String> categoryNames,
+  ) {
+    final items = (data as Map<String, dynamic>)['items'] as List<dynamic>;
+    return items.map((e) {
+      final json = e as Map<String, dynamic>;
+      return mapProduct(
+        json,
+        categoryName: categoryNames[json['categoryId']] ?? 'Lainnya',
+      );
+    }).toList();
+  }
+
+  /// Get Categories: backend cache -> Drift cache -> bundled seed.
   Future<List<PosCategory>> getCategories() async {
-    return defaultCategories;
+    if (fetchFromNetwork) {
+      try {
+        final res = await apiClient.getWithRetry(
+          '/v1/categories',
+          queryParameters: {'limit': 100},
+        );
+        final categories = _categoriesFromEnvelope(res.data);
+        await _cacheCategories(categories);
+        return categories;
+      } catch (_) {
+        // fall through to cache/seed below
+      }
+    }
+
+    final cached = await _readCachedCategories();
+    return cached.isNotEmpty ? cached : defaultCategories;
   }
 
   /// Get Products with category & search filter
@@ -243,7 +395,7 @@ class PosRepository {
     String? categoryId,
     String? searchQuery,
   }) async {
-    var result = List<PosProduct>.from(defaultProducts);
+    var result = await _loadAllProducts();
 
     if (categoryId != null && categoryId != 'all') {
       result = result.where((p) => p.categoryId == categoryId).toList();
@@ -262,15 +414,132 @@ class PosRepository {
     return result;
   }
 
-  /// Lookup product by Barcode / SKU
+  Future<List<PosProduct>> _loadAllProducts() async {
+    if (fetchFromNetwork) {
+      try {
+        final categories = await getCategories();
+        final names = {for (final c in categories) c.id: c.name};
+        final res = await apiClient.getWithRetry(
+          '/v1/products',
+          queryParameters: {'limit': 100},
+        );
+        final products = _productsFromEnvelope(res.data, names);
+        await _cacheProducts(products);
+        return products;
+      } catch (_) {
+        // fall through to cache/seed below
+      }
+    }
+
+    final cached = await _readCachedProducts();
+    return cached.isNotEmpty ? cached : defaultProducts;
+  }
+
+  /// Lookup product by Barcode / SKU: backend exact match -> local catalog.
   Future<PosProduct?> lookupByCode(String code) async {
+    if (fetchFromNetwork) {
+      try {
+        final res = await apiClient.dio.get(
+          '/v1/products/lookup',
+          queryParameters: {'code': code},
+        );
+        final json = res.data as Map<String, dynamic>;
+        final category = json['category'] as String?;
+        return mapProduct(
+          json,
+          categoryName: category ?? 'Lainnya',
+        );
+      } catch (_) {
+        // offline / not found: fall back to local catalog
+      }
+    }
+
     final clean = code.trim().toLowerCase();
-    for (final p in defaultProducts) {
-      if (p.sku.toLowerCase() == clean || (p.barcode != null && p.barcode!.toLowerCase() == clean)) {
+    final local = await _loadAllProducts();
+    for (final p in local) {
+      if (p.sku.toLowerCase() == clean ||
+          (p.barcode != null && p.barcode!.toLowerCase() == clean)) {
         return p;
       }
     }
     return null;
+  }
+
+  Future<void> _cacheCategories(List<PosCategory> categories) async {
+    await database.batch((batch) {
+      batch.deleteAll(database.cachedCategories);
+      batch.insertAll(
+        database.cachedCategories,
+        categories
+            .map((c) => CachedCategoriesCompanion.insert(
+                  id: c.id,
+                  name: c.name,
+                  sortOrder: Value(c.sortOrder),
+                  icon: Value(c.icon),
+                  updatedAt: DateTime.now(),
+                ))
+            .toList(),
+      );
+    });
+  }
+
+  Future<List<PosCategory>> _readCachedCategories() async {
+    final rows = await database.select(database.cachedCategories).get();
+    return rows
+        .map((r) => PosCategory(
+              id: r.id,
+              name: r.name,
+              icon: r.icon ?? '☕',
+              sortOrder: r.sortOrder,
+            ))
+        .toList();
+  }
+
+  Future<void> _cacheProducts(List<PosProduct> products) async {
+    await database.batch((batch) {
+      batch.deleteAll(database.cachedProducts);
+      batch.insertAll(
+        database.cachedProducts,
+        products
+            .map((p) => CachedProductsCompanion.insert(
+                  id: p.id,
+                  categoryId: p.categoryId,
+                  name: p.name,
+                  sku: Value(p.sku),
+                  barcode: Value(p.barcode),
+                  price: p.price,
+                  costPrice: Value(p.costPrice),
+                  imageUrl: Value(p.imageUrl),
+                  stockQuantity: Value(p.stockQuantity),
+                  isAvailable: Value(p.isAvailable),
+                  updatedAt: DateTime.now(),
+                ))
+            .toList(),
+      );
+    });
+  }
+
+  Future<List<PosProduct>> _readCachedProducts() async {
+    final rows = await database.select(database.cachedProducts).get();
+    final names = {
+      for (final c in await _readCachedCategories()) c.id: c.name,
+    };
+    return rows
+        .map((r) => PosProduct(
+              id: r.id,
+              name: r.name,
+              description: null,
+              sku: r.sku ?? '',
+              barcode: r.barcode,
+              price: r.price,
+              costPrice: r.costPrice,
+              categoryId: r.categoryId,
+              categoryName: names[r.categoryId] ?? 'Lainnya',
+              stockQuantity: r.stockQuantity,
+              isAvailable: r.isAvailable,
+              imageUrl: r.imageUrl,
+            ))
+        .toList();
   }
 
   /// Park Bill (Hold Bill - F2)
@@ -315,39 +584,43 @@ class PosRepository {
     final orderId = 'TB-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     final idempotencyKey = const Uuid().v4();
 
+    // Backend CreateOrderDto: orderType enum + items (productId/qty/unitPrice).
+    // Modifier selections are folded into unitPrice (see CartItem.unitPrice).
     final payload = {
-      'orderId': orderId,
-      'tableNumber': tableNumber,
-      'orderType': orderType,
-      'customerName': customerName,
-      'cashierName': cashierName,
-      'items': items.map((i) => i.toJson()).toList(),
-      'totals': {
-        'subtotal': totals.subtotal,
-        'itemDiscountTotal': totals.itemDiscountTotal,
-        'voucherDiscount': totals.voucherDiscount,
-        'serviceCharge': totals.serviceCharge,
-        'tax': totals.tax,
-        'rounding': totals.rounding,
-        'grandTotal': totals.grandTotal,
-      },
-      'payment': payment.toJson(),
-      'submittedAt': DateTime.now().toIso8601String(),
+      'orderType': _mapOrderType(orderType),
+      'items': items
+          .map((i) => {
+                'productId': i.product.id,
+                'qty': i.quantity,
+                'unitPrice': i.unitPrice,
+                if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,
+              })
+          .toList(),
+      if (totals.totalDiscount > 0) 'discountAmount': totals.totalDiscount,
+      if (totals.totalDiscount > 0) 'discountName': 'Diskon',
     };
 
     bool isOnlineSuccess = false;
     try {
       final response = await apiClient.dio.post(
-        '/pos/orders',
+        '/v1/orders',
         data: payload,
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         isOnlineSuccess = true;
+        // Order exists server-side now; record the payment against its id.
+        final created = response.data;
+        if (created is Map && created['id'] is String) {
+          await _createPayment(created['id'] as String, payment);
+        }
       }
-    } catch (_) {
-      // Offline or network error: write to Outbox events queue for idempotent background sync!
+    } catch (e) {
+      // Only queue when the request never reached the server; a validation or
+      // other 4xx must surface instead of being replayed forever.
+      if (!_isOfflineError(e)) rethrow;
       await outboxDao.enqueue(
-        endpoint: '/pos/orders',
+        endpoint: '/v1/orders',
         method: 'POST',
         payload: payload,
         idempotencyKey: idempotencyKey,
