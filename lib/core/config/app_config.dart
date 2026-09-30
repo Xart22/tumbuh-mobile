@@ -1,8 +1,13 @@
 class AppConfig {
   AppConfig._();
 
-  /// Default API base URL from backend environment (contract: NEXT_PUBLIC_API_URL or mobile default)
-  static const String defaultBaseUrl = 'https://api.tumbuhpos.com';
+  /// API base URL. Override per-run without editing code:
+  /// `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000`
+  /// (10.0.2.2 reaches the host machine from the Android emulator).
+  static const String defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3000',
+  );
   
   /// Connection and receive timeouts
   static const Duration connectTimeout = Duration(seconds: 15);

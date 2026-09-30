@@ -64,6 +64,11 @@ class ApiClient {
 
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          // Backend wraps every JSON response as {success, data, meta}.
+          response.data = unwrapEnvelope(response.data);
+          return handler.next(response);
+        },
         onError: (DioException error, handler) async {
           // 401 Unauthorized -> Global session invalidation
           if (error.response?.statusCode == 401) {
@@ -116,21 +121,43 @@ class ApiClient {
     }
   }
 
+  /// Backend wraps JSON as `{success, data, meta}`. Returns the inner payload.
+  /// Non-enveloped bodies (CSV string, bytes, already-unwrapped test fixtures)
+  /// pass through untouched.
+  static dynamic unwrapEnvelope(dynamic data) {
+    if (data is Map && data['success'] == true && data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
+
+  /// Pulls the human message from an error body shaped either
+  /// `{success:false, error:{code,message}}` (backend) or legacy `{message}`.
+  static String? extractErrorMessage(dynamic data) {
+    if (data is Map) {
+      final error = data['error'];
+      if (error is Map && error['message'] != null) {
+        return _stringify(error['message']);
+      }
+      if (data['message'] != null) {
+        return _stringify(data['message']);
+      }
+    }
+    return null;
+  }
+
+  static String _stringify(dynamic value) =>
+      value is List ? value.join(', ') : value.toString();
+
   ApiException _mapDioError(DioException error) {
     final response = error.response;
     final statusCode = response?.statusCode;
     final data = response?.data;
 
-    String extractMessage() {
-      if (data is Map<String, dynamic>) {
-        if (data.containsKey('message')) {
-          final msg = data['message'];
-          if (msg is List) return msg.join(', ');
-          return msg.toString();
-        }
-      }
-      return error.message ?? 'Terjadi kesalahan jaringan.';
-    }
+    final message = extractErrorMessage(data) ??
+        error.message ??
+        'Terjadi kesalahan jaringan.';
+    String extractMessage() => message;
 
     switch (statusCode) {
       case 400:
