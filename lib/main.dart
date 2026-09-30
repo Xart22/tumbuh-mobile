@@ -11,6 +11,7 @@ import 'data/local/outbox/outbox_dao.dart';
 import 'data/local/sync/sync_engine.dart';
 import 'data/remote/auth_repository.dart';
 import 'data/remote/kitchen_repository.dart';
+import 'data/remote/owner_repository.dart';
 import 'data/remote/pos_repository.dart';
 import 'data/remote/shift_repository.dart';
 import 'features/auth/bloc/auth_bloc.dart';
@@ -119,8 +120,15 @@ class TumbuhApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final appRouter = router ?? AppRouter.createRouter();
 
-    return RepositoryProvider<KitchenRepository>(
-      create: (_) => KitchenRepository(apiClient: apiClient),
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<KitchenRepository>(
+          create: (_) => KitchenRepository(apiClient: apiClient),
+        ),
+        RepositoryProvider<OwnerRepository>(
+          create: (_) => OwnerRepository(apiClient: apiClient),
+        ),
+      ],
       child: MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(

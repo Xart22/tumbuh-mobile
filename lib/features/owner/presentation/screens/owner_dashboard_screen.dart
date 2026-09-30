@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../shared/math/order_math.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_typography.dart';
+import '../../../../data/remote/owner_repository.dart';
 import '../../bloc/owner_bloc.dart';
 import '../../bloc/owner_event.dart';
 import '../../bloc/owner_state.dart';
@@ -23,7 +24,15 @@ class OwnerDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => OwnerBloc(),
+      create: (context) {
+        OwnerRepository? ownerRepository;
+        try {
+          ownerRepository = context.read<OwnerRepository>();
+        } catch (_) {
+          ownerRepository = null;
+        }
+        return OwnerBloc(ownerRepository: ownerRepository);
+      },
       child: const _OwnerDashboardContent(),
     );
   }

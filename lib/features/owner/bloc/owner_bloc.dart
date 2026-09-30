@@ -1,11 +1,16 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../data/remote/owner_repository.dart';
 import '../data/mock/owner_mock_data.dart';
 import '../data/models/approval_model.dart';
 import 'owner_event.dart';
 import 'owner_state.dart';
 
 class OwnerBloc extends Bloc<OwnerEvent, OwnerState> {
-  OwnerBloc() : super(const OwnerState()) {
+  final OwnerRepository? _ownerRepository;
+
+  OwnerBloc({OwnerRepository? ownerRepository})
+      : _ownerRepository = ownerRepository,
+        super(const OwnerState()) {
     on<OwnerLoadData>(_onLoadData);
     on<OwnerSelectTab>(_onSelectTab);
     on<OwnerSelectOutlet>(_onSelectOutlet);
@@ -19,7 +24,27 @@ class OwnerBloc extends Bloc<OwnerEvent, OwnerState> {
     add(const OwnerLoadData());
   }
 
-  void _onLoadData(OwnerLoadData event, Emitter<OwnerState> emit) {
+  Future<void> _onLoadData(OwnerLoadData event, Emitter<OwnerState> emit) async {
+    final repo = _ownerRepository;
+    if (repo != null) {
+      try {
+        final snapshot = await repo.fetchDashboard();
+        emit(state.copyWith(
+          isLoading: false,
+          kpiData: snapshot.kpi,
+          hourlySales: snapshot.hourlySales,
+          topProducts: snapshot.topProducts,
+          paymentShares: snapshot.paymentShares,
+          approvals: OwnerMockData.getInitialApprovals(),
+          stockAlerts: OwnerMockData.stockAlerts,
+          availableOutlets: OwnerMockData.availableOutlets,
+        ));
+        return;
+      } catch (_) {
+        // Fall through to mock data so the dashboard still renders offline.
+      }
+    }
+
     emit(state.copyWith(
       isLoading: false,
       kpiData: OwnerMockData.kpiData,
