@@ -820,6 +820,20 @@ class PosRepository {
     _parkedBills.removeWhere((b) => b.id == id);
   }
 
+  /// Moves an order to another table. Backend: `POST /v1/orders/:id/move-table`.
+  Future<bool> moveOrderTable(String orderId, String tableId) async {
+    try {
+      await apiClient.dio.post(
+        '/v1/orders/$orderId/move-table',
+        data: {'tableId': tableId},
+        options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> cancelParkedBill(String id) async {
     if (fetchFromNetwork) {
       try {

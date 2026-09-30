@@ -32,6 +32,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosClearCustomer>(_onClearCustomer);
     on<PosApplyVoucher>(_onApplyVoucher);
     on<PosRemoveVoucher>(_onRemoveVoucher);
+    on<PosMoveParkedBill>(_onMoveParkedBill);
     on<PosParkBill>(_onParkBill);
     on<PosRestoreParkedBill>(_onRestoreParkedBill);
     on<PosSubmitPayment>(_onSubmitPayment);
@@ -304,6 +305,26 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       clearVoucherError: true,
       totals: totals,
     ));
+  }
+
+  Future<void> _onMoveParkedBill(
+    PosMoveParkedBill event,
+    Emitter<PosState> emit,
+  ) async {
+    final tableId = await posRepository.resolveTableId(event.tableNumber);
+    if (tableId == null) {
+      emit(state.copyWith(
+        errorMessage: 'Meja "${event.tableNumber}" tidak ditemukan.',
+      ));
+      return;
+    }
+    final moved = await posRepository.moveOrderTable(event.orderId, tableId);
+    if (!moved) {
+      emit(state.copyWith(errorMessage: 'Gagal memindahkan meja.'));
+      return;
+    }
+    final parked = await posRepository.fetchParkedBills();
+    emit(state.copyWith(parkedBills: parked, errorMessage: ''));
   }
 
   Future<void> _onParkBill(PosParkBill event, Emitter<PosState> emit) async {

@@ -83,6 +83,46 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
     );
   }
 
+  void _promptMoveTable(BuildContext context, String orderId, String currentTable) {
+    final controller = TextEditingController(text: currentTable);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LpColors.surfaceCard,
+        title: const Text('Pindah Meja', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(labelText: 'Nomor meja tujuan'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final table = controller.text.trim();
+              Navigator.of(ctx).pop();
+              if (table.isEmpty) return;
+              context.read<PosBloc>().add(
+                    PosMoveParkedBill(orderId: orderId, tableNumber: table),
+                  );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Pindah meja ke "$table" diproses.'),
+                  backgroundColor: LpColors.accentAmber,
+                ),
+              );
+            },
+            child: const Text('Pindah'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showParkedBillsSheet(BuildContext context, PosState state) {
     showModalBottomSheet(
       context: context,
@@ -103,12 +143,24 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
             return ListTile(
               title: Text('Tiket #${bill.ticketNumber} - Meja ${bill.tableNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               subtitle: Text('${bill.items.length} item • ${bill.customerName}', style: const TextStyle(color: LpColors.textMuted)),
-              trailing: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  context.read<PosBloc>().add(PosRestoreParkedBill(bill.id));
-                },
-                child: const Text('Buka Kembali'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _promptMoveTable(context, bill.id, bill.tableNumber);
+                    },
+                    child: const Text('Pindah'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      context.read<PosBloc>().add(PosRestoreParkedBill(bill.id));
+                    },
+                    child: const Text('Buka Kembali'),
+                  ),
+                ],
               ),
             );
           },
