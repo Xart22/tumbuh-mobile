@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/device/device_service.dart';
 import 'core/network/api_client.dart';
 import 'core/printer/thermal_printer_service.dart';
@@ -81,21 +82,36 @@ void main() async {
     storage: secureStorage,
   );
 
-  runApp(
-    TumbuhApp(
-      router: router,
-      deviceService: deviceService,
-      secureStorage: secureStorage,
-      appDb: appDb,
-      outboxDao: outboxDao,
-      apiClient: apiClient,
-      syncEngine: syncEngine,
-      authRepository: authRepository,
-      shiftRepository: shiftRepository,
-      posRepository: posRepository,
-      printerService: printerService,
-    ),
+  final app = TumbuhApp(
+    router: router,
+    deviceService: deviceService,
+    secureStorage: secureStorage,
+    appDb: appDb,
+    outboxDao: outboxDao,
+    apiClient: apiClient,
+    syncEngine: syncEngine,
+    authRepository: authRepository,
+    shiftRepository: shiftRepository,
+    posRepository: posRepository,
+    printerService: printerService,
   );
+
+  const sentryDsn = String.fromEnvironment('SENTRY_DSN');
+  if (sentryDsn.isEmpty) {
+    runApp(app);
+  } else {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = sentryDsn;
+        options.tracesSampleRate = 0.2;
+        options.environment = const String.fromEnvironment(
+          'ENVIRONMENT',
+          defaultValue: 'production',
+        );
+      },
+      appRunner: () => runApp(app),
+    );
+  }
 }
 
 class TumbuhApp extends StatelessWidget {

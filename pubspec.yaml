@@ -54,6 +54,7 @@ dependencies:
   equatable: ^3.0.0
   local_auth: any
   qr_flutter: ^4.1.0
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:
