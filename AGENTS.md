@@ -9,7 +9,7 @@ Package name `tumbuh_mobile`; import via `package:tumbuh_mobile/...`.
 - `flutter test` — full suite; single file: `flutter test test/order_math_test.dart`
 - `dart run build_runner build --delete-conflicting-outputs` — only needed after editing Drift tables in `lib/data/local/db/app_database.dart` (regenerates `app_database.g.dart`)
 
-No CI workflows exist (`.github/` only has unrelated modernization hooks). Run analyze + test manually.
+CI is `.github/workflows/ci.yml` (analyze + test + release APK build) on PRs and `main`. To verify an Android build locally: `flutter build apk --release --dart-define=API_BASE_URL=...`.
 
 ## Docs vs reality (read before trusting)
 - `README.md` is untouched Flutter boilerplate — ignore.
@@ -36,4 +36,4 @@ No CI workflows exist (`.github/` only has unrelated modernization hooks). Run a
 
 ## Testing
 - `test/*.dart`. Widget tests construct the whole app with an in-memory Drift DB (`AppDatabase(NativeDatabase.memory())`); follow that pattern instead of mocking.
-- Android app id is still placeholder `com.example.tumbuh_mobile`; release builds sign with debug keys (`android/app/build.gradle.kts`).
+- Android app id is `id.tumbuh.pos` (minSdk 26). Release enables R8/shrink and signs from `android/key.properties` when present, else debug keys (`android/app/build.gradle.kts`). `sentry_flutter` is initialised only when `SENTRY_DSN` is passed via `--dart-define`.
