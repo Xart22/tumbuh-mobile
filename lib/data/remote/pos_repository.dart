@@ -1081,8 +1081,10 @@ class PosRepository {
     }
 
 
-    // Auto-Print Receipt if enabled
-    if (payment.printPhysicalReceipt && printerConfig != null) {
+    // Auto-Print Receipt if enabled and a printer is configured
+    if (payment.printPhysicalReceipt &&
+        printerConfig != null &&
+        printerConfig.connectionAddress.isNotEmpty) {
       if (storeName != null && storeName.isNotEmpty) {
         printerService.storeName = storeName;
       }

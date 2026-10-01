@@ -191,12 +191,16 @@ class _ShiftScreenState extends State<ShiftScreen> {
                     final auth = context.read<AuthBloc>().state;
                     final user =
                         auth is AuthKasirAuthenticated ? auth.user : null;
+                    final hour = DateTime.now().hour;
+                    final shiftName = hour < 12
+                        ? 'Shift Pagi'
+                        : (hour < 18 ? 'Shift Sore' : 'Shift Malam');
                     context.read<ShiftBloc>().add(
                           ShiftOpenRequested(
                             initialFloat: floatValue,
-                            cashierId: user?.id ?? 'cashier_01',
+                            cashierId: user?.id ?? 'cashier',
                             cashierName: user?.name ?? 'Kasir',
-                            shiftName: 'Shift 1 Pagi',
+                            shiftName: shiftName,
                           ),
                         );
                   },

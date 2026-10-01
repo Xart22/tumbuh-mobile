@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/device/device_service.dart';
 import '../../../../routing/app_router.dart';
 import '../../../../shared/theme/app_typography.dart';
@@ -201,7 +202,7 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
                     ],
                   ),
                   Text(
-                    'Aplikasi Kasir Tablet Android v1.2.0',
+                        'Aplikasi Kasir Tablet Android v${AppConfig.appVersion}',
                     style: LpTypography.bodySm.copyWith(color: const Color(0xFF94A3B8)),
                   ),
                 ],

@@ -59,12 +59,13 @@ class PosState extends Equatable {
     this.totals = OrderTotals.zero,
 
     this.printerConfig = const PrinterDeviceConfig(
-      id: 'print-01',
-      name: 'Epson TM-T82X (Thermal 80mm)',
+      id: 'unset',
+      name: 'Belum ada printer (atur di Manajemen Printer)',
       role: PrinterRole.cashier,
-      connectionType: PrinterConnectionType.bluetooth,
-      connectionAddress: '68:C6:3A:88:01',
-      paperWidth: PrinterPaperWidth.mm80,
+      connectionType: PrinterConnectionType.network,
+      connectionAddress: '',
+      isConnected: false,
+      batteryPercent: 0,
     ),
     this.lastCheckoutResult,
     this.errorMessage,
