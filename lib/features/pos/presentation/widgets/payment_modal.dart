@@ -846,35 +846,38 @@ class _PaymentModalState extends State<PaymentModal> {
         children: [
           Text('PILIH METODE PEMBAYARAN', style: LpTypography.labelMd.copyWith(color: LpColors.textMuted, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          Row(
-            children: PosPaymentMethod.values.map((method) {
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: PosPaymentMethod.values
+                // Bank transfer has no backend method yet; don't offer it.
+                .where((m) => m != PosPaymentMethod.transfer)
+                .map((method) {
               final isSel = _singleMethod == method;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: InkWell(
-                    onTap: () => setState(() => _singleMethod = method),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSel ? LpColors.surfaceCardActive : LpColors.surfaceCard,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSel ? LpColors.primaryGreen : LpColors.borderDark, width: isSel ? 2 : 1),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(method.iconEmoji, style: const TextStyle(fontSize: 28)),
-                          const SizedBox(height: 8),
-                          Text(
-                            method.label,
-                            style: LpTypography.bodyMd.copyWith(
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                              color: isSel ? Colors.white : LpColors.textSecondary,
-                            ),
+              return SizedBox(
+                width: 150,
+                child: InkWell(
+                  onTap: () => setState(() => _singleMethod = method),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isSel ? LpColors.surfaceCardActive : LpColors.surfaceCard,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isSel ? LpColors.primaryGreen : LpColors.borderDark, width: isSel ? 2 : 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(method.iconEmoji, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(height: 8),
+                        Text(
+                          method.label,
+                          style: LpTypography.bodyMd.copyWith(
+                            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            color: isSel ? Colors.white : LpColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -8,6 +8,7 @@ import 'package:tumbuh_mobile/data/models/pos_product.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_bloc.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_event.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_state.dart';
+import 'package:tumbuh_mobile/features/pos/presentation/widgets/barcode_scanner_screen.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/cart_panel.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/customer_picker_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/qris_payment_modal.dart';
@@ -71,12 +72,61 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
   }
 
   Future<void> _promptScanBarcode() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: LpColors.surfaceCard,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded, color: LpColors.primaryLight),
+              title: const Text('Kamera', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(ctx).pop('camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.keyboard_rounded, color: LpColors.primaryLight),
+              title: const Text('Input Manual / Scanner HID', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(ctx).pop('manual'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (choice == null) return;
+
+    String? code;
+    if (choice == 'camera') {
+      code = await BarcodeScannerScreen.show(context);
+    } else {
+      code = await _promptManualBarcode();
+    }
+    if (!mounted) return;
+    if (code == null || code.isEmpty) return;
+
+    final product = await context.read<PosBloc>().lookupProduct(code);
+    if (!mounted) return;
+
+    if (product == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Barcode "$code" tidak ditemukan.'),
+          backgroundColor: LpColors.critical,
+        ),
+      );
+      return;
+    }
+    await _onProductTapped(product);
+  }
+
+  Future<String?> _promptManualBarcode() {
     final controller = TextEditingController();
-    final code = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LpColors.surfaceCard,
-        title: const Text('Scan / Input Barcode', style: TextStyle(color: Colors.white)),
+        title: const Text('Input Barcode / SKU', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -98,21 +148,6 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
         ],
       ),
     );
-    if (!mounted || code == null || code.isEmpty) return;
-
-    final product = await context.read<PosBloc>().lookupProduct(code);
-    if (!mounted) return;
-
-    if (product == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Barcode "$code" tidak ditemukan.'),
-          backgroundColor: LpColors.critical,
-        ),
-      );
-      return;
-    }
-    await _onProductTapped(product);
   }
 
   void _openPaymentModal(BuildContext context, PosState state) {
