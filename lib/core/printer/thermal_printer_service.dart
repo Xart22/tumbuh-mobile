@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart' as bt;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import '../../data/models/cart_item.dart';
 import '../../data/models/payment_model.dart';
@@ -368,11 +369,38 @@ class ThermalPrinterService {
   }
 
   /// Sends already-generated ESC/POS bytes to the configured printer.
-  /// Network (raw TCP 9100) is supported; Bluetooth/USB need a platform plugin.
+  /// Supports LAN (raw TCP 9100) and Bluetooth SPP (Android); USB is not wired.
   Future<bool> sendBytes(PrinterDeviceConfig config, Uint8List bytes) async {
-    if (config.connectionType != PrinterConnectionType.network) return false;
-    final (host, port) = parseNetworkAddress(config.connectionAddress);
-    return sendRawToNetwork(host, port, bytes);
+    switch (config.connectionType) {
+      case PrinterConnectionType.network:
+        final (host, port) = parseNetworkAddress(config.connectionAddress);
+        return sendRawToNetwork(host, port, bytes);
+      case PrinterConnectionType.bluetooth:
+        return _sendBluetooth(config.connectionAddress, bytes);
+      case PrinterConnectionType.usb:
+        return false;
+    }
+  }
+
+  Future<bool> _sendBluetooth(String address, Uint8List bytes) async {
+    try {
+      final printer = bt.BlueThermalPrinter.instance;
+      final devices = await printer.getBondedDevices();
+      if (devices.isEmpty) return false;
+
+      final target = devices.firstWhere(
+        (d) => (d.address ?? '').toLowerCase() == address.toLowerCase(),
+        orElse: () => devices.first,
+      );
+
+      final connected = await printer.isConnected ?? false;
+      if (!connected) await printer.connect(target);
+      await printer.writeBytes(bytes);
+      await printer.disconnect();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Test Print method

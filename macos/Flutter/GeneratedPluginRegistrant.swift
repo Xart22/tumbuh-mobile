@@ -5,6 +5,7 @@
 import FlutterMacOS
 import Foundation
 
+import blue_thermal_printer
 import connectivity_plus
 import device_info_plus
 import flutter_secure_storage_darwin
@@ -14,6 +15,7 @@ import package_info_plus
 import sentry_flutter
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  BlueThermalPrinterPlugin.register(with: registry.registrar(forPlugin: "BlueThermalPrinterPlugin"))
   ConnectivityPlusPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlusPlugin"))
   DeviceInfoPlusMacosPlugin.register(with: registry.registrar(forPlugin: "DeviceInfoPlusMacosPlugin"))
   FlutterSecureStorageDarwinPlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStorageDarwinPlugin"))
