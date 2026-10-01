@@ -150,7 +150,6 @@ class _PaymentModalState extends State<PaymentModal> {
             id: 'split-1',
             method: PosPaymentMethod.qris,
             amount: _split1QrisAmount,
-            referenceNumber: 'QRIS-BCA-9938201948102',
           ),
           SplitPaymentEntry(
             id: 'split-2',

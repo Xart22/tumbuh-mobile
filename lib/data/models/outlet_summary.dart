@@ -3,12 +3,14 @@ class OutletSummary {
   final String name;
   final String? address;
   final String? city;
+  final String? phone;
 
   const OutletSummary({
     required this.id,
     required this.name,
     this.address,
     this.city,
+    this.phone,
   });
 
   factory OutletSummary.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class OutletSummary {
       name: json['name'] as String,
       address: json['address'] as String?,
       city: json['city'] as String?,
+      phone: json['phone'] as String?,
     );
   }
 }

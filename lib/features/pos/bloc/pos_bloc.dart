@@ -3,6 +3,7 @@ import '../../../core/analytics/analytics_service.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../data/models/cart_item.dart';
 import '../../../data/models/outlet_pricing.dart';
+import '../../../data/models/outlet_summary.dart';
 import '../../../data/models/pos_product.dart';
 import '../../../data/models/product_modifier.dart';
 import '../../../data/models/product_variant.dart';
@@ -384,6 +385,13 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   Future<void> _onSubmitPayment(PosSubmitPayment event, Emitter<PosState> emit) async {
     emit(state.copyWith(status: PosStatus.loading));
     try {
+      OutletSummary? activeOutlet;
+      for (final o in state.outlets) {
+        if (o.id == state.activeOutletId) {
+          activeOutlet = o;
+          break;
+        }
+      }
       final result = await posRepository.submitOrderAndPayment(
         tableNumber: state.tableNumber,
         orderType: state.orderType,
@@ -393,6 +401,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         totals: state.totals,
         payment: event.paymentDetails,
         customerId: state.customerId,
+        storeName: activeOutlet?.name,
+        storeAddress: activeOutlet?.address,
+        storePhone: activeOutlet?.phone,
         printerConfig: state.printerConfig,
       );
 

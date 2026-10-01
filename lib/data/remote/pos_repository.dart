@@ -1023,6 +1023,9 @@ class PosRepository {
     required OrderTotals totals,
     required OrderPaymentDetails payment,
     String? customerId,
+    String? storeName,
+    String? storeAddress,
+    String? storePhone,
     PrinterDeviceConfig? printerConfig,
   }) async {
     final orderId = 'TB-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
@@ -1080,6 +1083,15 @@ class PosRepository {
 
     // Auto-Print Receipt if enabled
     if (payment.printPhysicalReceipt && printerConfig != null) {
+      if (storeName != null && storeName.isNotEmpty) {
+        printerService.storeName = storeName;
+      }
+      if (storeAddress != null && storeAddress.isNotEmpty) {
+        printerService.storeAddress = storeAddress;
+      }
+      if (storePhone != null && storePhone.isNotEmpty) {
+        printerService.storePhone = storePhone;
+      }
       try {
         final bytes = printerConfig.role == PrinterRole.kitchen
             ? printerService.generateKitchenTicketBytes(
