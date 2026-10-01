@@ -65,6 +65,51 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
     }
   }
 
+  Future<void> _promptScanBarcode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LpColors.surfaceCard,
+        title: const Text('Scan / Input Barcode', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Scan barcode / ketik SKU lalu Enter',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Cari'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || code == null || code.isEmpty) return;
+
+    final product = await context.read<PosBloc>().lookupProduct(code);
+    if (!mounted) return;
+
+    if (product == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Barcode "$code" tidak ditemukan.'),
+          backgroundColor: LpColors.critical,
+        ),
+      );
+      return;
+    }
+    await _onProductTapped(product);
+  }
+
   void _openPaymentModal(BuildContext context, PosState state) {
     PaymentModal.show(
       context,
@@ -498,13 +543,7 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
                   SizedBox(
                     height: 44,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Simulate scanner input
-                        context.read<PosBloc>().add(const PosScanBarcode('KOP-AREN-01'));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Barcode KOP-AREN-01 discan!'), backgroundColor: LpColors.primaryGreen),
-                        );
-                      },
+                      onPressed: _promptScanBarcode,
                       icon: const Icon(Icons.qr_code_scanner, size: 20, color: LpColors.primaryLight),
                       label: const Text('Scan SKU'),
                       style: OutlinedButton.styleFrom(

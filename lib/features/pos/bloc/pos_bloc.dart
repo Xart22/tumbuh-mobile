@@ -44,6 +44,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   Future<List<ModifierGroup>> loadModifiers(String productId) =>
       posRepository.getProductModifiers(productId);
 
+  /// Barcode/SKU lookup for the scanner (backend exact match, local fallback).
+  Future<PosProduct?> lookupProduct(String code) =>
+      posRepository.lookupByCode(code);
+
   OrderTotals _recalculateTotals(List<CartItem> items, int voucherDiscount) {
     final orderDraftItems = items.map((ci) {
       return OrderItemDraft(
