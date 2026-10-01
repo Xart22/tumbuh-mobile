@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/analytics/analytics_service.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../data/models/auth_user.dart';
 import '../../../data/models/outlet_summary.dart';
@@ -134,12 +135,15 @@ class AuthFailure extends AuthState {
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SecureStorageService _storage;
+  final AnalyticsService? _analytics;
 
   AuthBloc({
     required AuthRepository authRepository,
     required SecureStorageService storage,
+    AnalyticsService? analytics,
   })  : _authRepository = authRepository,
         _storage = storage,
+        _analytics = analytics,
         super(AuthInitial()) {
     on<AuthCheckStatus>(_onCheckStatus);
     on<AuthLoginKasirRequested>(_onLoginKasir);
@@ -184,8 +188,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         pin: event.pin,
         cashierName: event.cashierName,
       );
+      _analytics?.log('login_kasir', {'role': user.role});
       emit(AuthKasirAuthenticated(user));
     } catch (e) {
+      _analytics?.log('login_kasir_failed');
       final biometric = await _authRepository.canCheckBiometrics();
       emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
       emit(AuthUnauthenticated(biometricAvailable: biometric));
@@ -234,6 +240,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLogout(AuthLogoutRequested event, Emitter<AuthState> emit) async {
+    _analytics?.log('logout');
     await _authRepository.logout();
     final biometric = await _authRepository.canCheckBiometrics();
     emit(AuthUnauthenticated(biometricAvailable: biometric));

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/analytics/analytics_service.dart';
 import '../../../data/models/cart_item.dart';
 import '../../../data/models/outlet_pricing.dart';
 import '../../../data/models/pos_product.dart';
@@ -12,11 +13,13 @@ import 'pos_state.dart';
 
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository posRepository;
+  final AnalyticsService? analytics;
 
   /// Active outlet pricing; refreshed on menu load, defaults until then.
   OutletPricing _pricing = OutletPricing.legacy;
 
-  PosBloc({required this.posRepository}) : super(const PosState()) {
+  PosBloc({required this.posRepository, this.analytics})
+      : super(const PosState()) {
     on<PosLoadMenu>(_onLoadMenu);
     on<PosSelectCategory>(_onSelectCategory);
     on<PosSearchProducts>(_onSearchProducts);
@@ -429,6 +432,11 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         printerConfig: state.printerConfig,
       );
 
+      analytics?.log('order_submitted', {
+        'total': result['grandTotal'],
+        'online': result['isOnline'],
+      });
+
       final resetTotals = _recalculateTotals(const [], 0);
       emit(state.copyWith(
         status: PosStatus.checkoutSuccess,
@@ -437,6 +445,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         lastCheckoutResult: result,
       ));
     } catch (e) {
+      analytics?.log('order_submit_failed', {'error': e.toString()});
       emit(state.copyWith(
         status: PosStatus.error,
         errorMessage: 'Gagal menyelesaikan pembayaran: $e',

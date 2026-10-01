@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/analytics/analytics_service.dart';
 import '../../../data/models/cash_denomination.dart';
 import '../../../data/models/shift_model.dart';
 import '../../../data/remote/shift_repository.dart';
@@ -123,9 +124,11 @@ class ShiftError extends ShiftState {
 // --- Bloc ---
 class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
   final ShiftRepository _shiftRepository;
+  final AnalyticsService? _analytics;
 
-  ShiftBloc({required ShiftRepository shiftRepository})
+  ShiftBloc({required ShiftRepository shiftRepository, AnalyticsService? analytics})
       : _shiftRepository = shiftRepository,
+        _analytics = analytics,
         super(ShiftInitial()) {
     on<ShiftLoadCurrent>(_onLoadCurrent);
     on<ShiftSessionReset>(_onSessionReset);
@@ -175,6 +178,8 @@ class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
         shiftName: event.shiftName,
       );
 
+      _analytics?.log('shift_open', {'float': event.initialFloat});
+
       final denoms = CashDenomination.defaultDenominations();
       final totalPhysical = denoms.fold<int>(0, (sum, d) => sum + d.subtotal);
       final variance = totalPhysical - shift.expectedCashInDrawer;
@@ -188,6 +193,7 @@ class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
         ),
       );
     } catch (e) {
+      _analytics?.log('shift_open_failed', {'error': e.toString()});
       emit(ShiftError(e.toString()));
     }
   }
@@ -274,8 +280,10 @@ class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
         denominationBreakdown: breakdown,
       );
 
+      _analytics?.log('shift_close', {'variance': closedShift.variance});
       emit(ShiftCloseSuccess(closedShift));
     } catch (e) {
+      _analytics?.log('shift_close_failed', {'error': e.toString()});
       emit(ShiftError(e.toString()));
       // Re-emit loaded state so user doesn't lose inputs
       emit(currentState);

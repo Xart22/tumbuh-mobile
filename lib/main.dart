@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'core/analytics/analytics_service.dart';
 import 'core/device/device_service.dart';
 import 'core/network/api_client.dart';
 import 'core/network/health_service.dart';
@@ -173,16 +174,19 @@ class TumbuhApp extends StatelessWidget {
           create: (context) => AuthBloc(
             authRepository: authRepository,
             storage: secureStorage,
+            analytics: const AnalyticsService(),
           )..add(AuthCheckStatus()),
         ),
         BlocProvider<ShiftBloc>(
           create: (context) => ShiftBloc(
             shiftRepository: shiftRepository,
+            analytics: const AnalyticsService(),
           ),
         ),
         BlocProvider<PosBloc>(
           create: (context) => PosBloc(
             posRepository: posRepository,
+            analytics: const AnalyticsService(),
           )..add(const PosLoadMenu()),
         ),
       ],
