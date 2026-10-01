@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/models/cart_item.dart';
 import '../../../../data/models/pos_product.dart';
 import '../../../../data/models/product_modifier.dart';
+import '../../../../data/models/product_variant.dart';
 import '../../../../shared/formatters/currency_formatter.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_typography.dart';
@@ -11,12 +12,16 @@ class ProductOptionsModal extends StatefulWidget {
 
   /// Modifier groups to render (already loaded/merged by the caller).
   final List<ModifierGroup> groups;
+
+  /// Product variants to choose from (empty = no variant section).
+  final List<ProductVariant> variants;
   final Function(CartItem item) onAddToCart;
 
   const ProductOptionsModal({
     super.key,
     required this.product,
     required this.groups,
+    this.variants = const [],
     required this.onAddToCart,
   });
 
@@ -24,6 +29,7 @@ class ProductOptionsModal extends StatefulWidget {
     BuildContext context, {
     required PosProduct product,
     required List<ModifierGroup> groups,
+    List<ProductVariant> variants = const [],
     required Function(CartItem item) onAddToCart,
   }) {
     return showDialog(
@@ -33,6 +39,7 @@ class ProductOptionsModal extends StatefulWidget {
       builder: (ctx) => ProductOptionsModal(
         product: product,
         groups: groups,
+        variants: variants,
         onAddToCart: onAddToCart,
       ),
     );
@@ -46,10 +53,14 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
   int _quantity = 1;
   final TextEditingController _notesController = TextEditingController();
   final Map<String, List<ModifierOption>> _selectedModifiers = {};
+  ProductVariant? _selectedVariant;
 
   @override
   void initState() {
     super.initState();
+    if (widget.variants.isNotEmpty) {
+      _selectedVariant = widget.variants.first;
+    }
     // Initialize default selections
     for (final group in widget.groups) {
       final defaults = group.options.where((o) => o.isDefault).toList();
@@ -101,7 +112,7 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
 
   int get _unitPrice {
     final modTotal = _allSelectedModifiers.fold<int>(0, (sum, m) => sum + m.priceDelta);
-    return widget.product.price + modTotal;
+    return widget.product.price + (_selectedVariant?.priceAdjustment ?? 0) + modTotal;
   }
 
   int get _totalPrice => _unitPrice * _quantity;
@@ -112,6 +123,9 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
       selectedModifiers: _allSelectedModifiers,
       quantity: _quantity,
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      variantId: _selectedVariant?.id,
+      variantName: _selectedVariant?.name,
+      variantPriceAdjustment: _selectedVariant?.priceAdjustment ?? 0,
     );
     widget.onAddToCart(item);
     Navigator.of(context).pop();
@@ -148,6 +162,10 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.variants.isNotEmpty) ...[
+                      _buildVariantSection(),
+                      const SizedBox(height: 24),
+                    ],
                     for (final group in widget.groups) ...[
                       _buildModifierGroup(group),
                       const SizedBox(height: 24),
@@ -315,6 +333,92 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVariantSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.category_outlined, size: 16, color: LpColors.primaryLight),
+            const SizedBox(width: 8),
+            Text(
+              'VARIAN',
+              style: LpTypography.labelMd.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+                color: LpColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: widget.variants.map((variant) {
+            final isSelected = _selectedVariant?.id == variant.id;
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => setState(() => _selectedVariant = variant),
+                borderRadius: BorderRadius.circular(12),
+                child: Ink(
+                  width: 200,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? LpColors.surfaceCardActive : LpColors.surfaceCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? LpColors.primaryGreen : LpColors.borderDark,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              variant.name,
+                              style: LpTypography.bodySm.copyWith(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isSelected ? Colors.white : LpColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                            size: 18,
+                            color: isSelected ? LpColors.primaryLight : LpColors.textMuted,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        variant.priceAdjustment > 0
+                            ? '+${CurrencyFormatter.format(variant.priceAdjustment)}'
+                            : '+Rp 0',
+                        style: LpTypography.dataCurrencySm.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: variant.priceAdjustment > 0
+                              ? LpColors.primaryLight
+                              : LpColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

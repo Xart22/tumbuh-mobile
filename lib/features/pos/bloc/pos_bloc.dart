@@ -3,6 +3,7 @@ import '../../../data/models/cart_item.dart';
 import '../../../data/models/outlet_pricing.dart';
 import '../../../data/models/pos_product.dart';
 import '../../../data/models/product_modifier.dart';
+import '../../../data/models/product_variant.dart';
 import '../../../data/remote/pos_repository.dart';
 
 import '../../../shared/math/order_math.dart';
@@ -44,6 +45,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   /// Loads backend modifier groups for a product (used by the options modal).
   Future<List<ModifierGroup>> loadModifiers(String productId) =>
       posRepository.getProductModifiers(productId);
+
+  /// Loads backend variants for a product (used by the options modal).
+  Future<List<ProductVariant>> loadVariants(String productId) =>
+      posRepository.getProductVariants(productId);
 
   /// Barcode/SKU lookup for the scanner (backend exact match, local fallback).
   Future<PosProduct?> lookupProduct(String code) =>

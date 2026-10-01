@@ -46,17 +46,20 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
   }
 
   Future<void> _onProductTapped(PosProduct product) async {
+    final bloc = context.read<PosBloc>();
     var groups = product.modifierGroups;
     if (groups.isEmpty) {
-      groups = await context.read<PosBloc>().loadModifiers(product.id);
+      groups = await bloc.loadModifiers(product.id);
     }
+    final variants = await bloc.loadVariants(product.id);
     if (!mounted) return;
 
-    if (groups.isNotEmpty) {
+    if (groups.isNotEmpty || variants.isNotEmpty) {
       ProductOptionsModal.show(
         context,
         product: product,
         groups: groups,
+        variants: variants,
         onAddToCart: (item) {
           context.read<PosBloc>().add(PosAddToCart(item));
         },

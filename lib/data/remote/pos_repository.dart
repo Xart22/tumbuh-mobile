@@ -19,6 +19,7 @@ import '../models/payment_model.dart';
 import '../models/pos_product.dart';
 import '../models/printer_config.dart';
 import '../models/product_modifier.dart';
+import '../models/product_variant.dart';
 import '../models/voucher_validation.dart';
 import '../../shared/math/order_math.dart';
 
@@ -535,6 +536,23 @@ class PosRepository {
     }
   }
 
+  /// Active variants for a product. Backend:
+  /// `GET /v1/product-variants/products/:productId`.
+  Future<List<ProductVariant>> getProductVariants(String productId) async {
+    try {
+      final res = await apiClient.getWithRetry(
+        '/v1/product-variants/products/$productId',
+      );
+      final items = (res.data as List<dynamic>).cast<Map<String, dynamic>>();
+      return items
+          .map(ProductVariant.fromJson)
+          .where((v) => v.isActive)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Searches CRM customers. Backend: `GET /v1/customers?search=`.
   Future<List<CustomerSummary>> searchCustomers(String query) async {
     try {
@@ -756,6 +774,7 @@ class PosRepository {
         final modifierGroups = _modifierGroupsPayload(i);
         return {
           'productId': i.product.id,
+          'variantId': ?i.variantId,
           'qty': i.quantity,
           'unitPrice': i.unitPrice,
           if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tumbuh_mobile/data/models/product_modifier.dart';
+import 'package:tumbuh_mobile/data/models/product_variant.dart';
 import 'package:tumbuh_mobile/data/models/voucher_validation.dart';
 import 'package:tumbuh_mobile/data/remote/pos_repository.dart';
 
@@ -74,6 +75,18 @@ void main() {
       expect(group.options.first.id, 'm1');
       expect(group.options.first.priceDelta, 5000);
       expect(group.options.first.groupId, 'g1');
+    });
+
+    test('ProductVariant.fromJson maps price adjustment', () {
+      final v = ProductVariant.fromJson({
+        'id': 'v1',
+        'name': 'Large 16oz',
+        'priceAdjustment': 5000,
+        'isActive': true,
+      });
+      expect(v.name, 'Large 16oz');
+      expect(v.priceAdjustment, 5000);
+      expect(v.isActive, isTrue);
     });
 
     test('VoucherValidation maps backend validate response', () {

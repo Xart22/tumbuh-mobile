@@ -10,6 +10,9 @@ class CartItem extends Equatable {
   final int quantity;
   final String? notes;
   final int itemDiscount; // IDR per line
+  final String? variantId;
+  final String? variantName;
+  final int variantPriceAdjustment;
 
   const CartItem({
     required this.id,
@@ -18,6 +21,9 @@ class CartItem extends Equatable {
     this.quantity = 1,
     this.notes,
     this.itemDiscount = 0,
+    this.variantId,
+    this.variantName,
+    this.variantPriceAdjustment = 0,
   });
 
   factory CartItem.create({
@@ -26,6 +32,9 @@ class CartItem extends Equatable {
     int quantity = 1,
     String? notes,
     int itemDiscount = 0,
+    String? variantId,
+    String? variantName,
+    int variantPriceAdjustment = 0,
   }) {
     return CartItem(
       id: const Uuid().v4(),
@@ -34,16 +43,19 @@ class CartItem extends Equatable {
       quantity: quantity,
       notes: notes,
       itemDiscount: itemDiscount,
+      variantId: variantId,
+      variantName: variantName,
+      variantPriceAdjustment: variantPriceAdjustment,
     );
   }
 
-  /// Unit price including modifier price deltas
+  /// Unit price including variant + modifier price deltas
   int get unitPrice {
     final modifierTotal = selectedModifiers.fold<int>(
       0,
       (sum, mod) => sum + mod.priceDelta,
     );
-    return product.price + modifierTotal;
+    return product.price + variantPriceAdjustment + modifierTotal;
   }
 
   /// Total price before discount
@@ -62,6 +74,9 @@ class CartItem extends Equatable {
     int? quantity,
     String? notes,
     int? itemDiscount,
+    String? variantId,
+    String? variantName,
+    int? variantPriceAdjustment,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -70,6 +85,9 @@ class CartItem extends Equatable {
       quantity: quantity ?? this.quantity,
       notes: notes ?? this.notes,
       itemDiscount: itemDiscount ?? this.itemDiscount,
+      variantId: variantId ?? this.variantId,
+      variantName: variantName ?? this.variantName,
+      variantPriceAdjustment: variantPriceAdjustment ?? this.variantPriceAdjustment,
     );
   }
 
@@ -80,6 +98,9 @@ class CartItem extends Equatable {
     'quantity': quantity,
     'notes': notes,
     'itemDiscount': itemDiscount,
+    'variantId': variantId,
+    'variantName': variantName,
+    'variantPriceAdjustment': variantPriceAdjustment,
     'unitPrice': unitPrice,
     'netTotal': netTotal,
   };
@@ -94,8 +115,22 @@ class CartItem extends Equatable {
     quantity: (json['quantity'] as num?)?.toInt() ?? 1,
     notes: json['notes'] as String?,
     itemDiscount: (json['itemDiscount'] as num?)?.toInt() ?? 0,
+    variantId: json['variantId'] as String?,
+    variantName: json['variantName'] as String?,
+    variantPriceAdjustment:
+        (json['variantPriceAdjustment'] as num?)?.toInt() ?? 0,
   );
 
   @override
-  List<Object?> get props => [id, product, selectedModifiers, quantity, notes, itemDiscount];
+  List<Object?> get props => [
+        id,
+        product,
+        selectedModifiers,
+        quantity,
+        notes,
+        itemDiscount,
+        variantId,
+        variantName,
+        variantPriceAdjustment,
+      ];
 }
