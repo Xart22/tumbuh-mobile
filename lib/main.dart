@@ -84,6 +84,7 @@ void main() async {
   runApp(
     TumbuhApp(
       router: router,
+      deviceService: deviceService,
       secureStorage: secureStorage,
       appDb: appDb,
       outboxDao: outboxDao,
@@ -99,6 +100,7 @@ void main() async {
 
 class TumbuhApp extends StatelessWidget {
   final GoRouter? router;
+  final DeviceService? deviceService;
   final SecureStorageService secureStorage;
   final AppDatabase appDb;
   final OutboxDao outboxDao;
@@ -112,6 +114,7 @@ class TumbuhApp extends StatelessWidget {
   const TumbuhApp({
     super.key,
     this.router,
+    this.deviceService,
     required this.secureStorage,
     required this.appDb,
     required this.outboxDao,
@@ -138,6 +141,8 @@ class TumbuhApp extends StatelessWidget {
         RepositoryProvider<OrdersRepository>(
           create: (_) => OrdersRepository(apiClient: apiClient),
         ),
+        if (deviceService != null)
+          RepositoryProvider<DeviceService>(create: (_) => deviceService!),
       ],
       child: MultiBlocProvider(
       providers: [

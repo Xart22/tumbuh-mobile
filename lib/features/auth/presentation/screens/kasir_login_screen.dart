@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/device/device_service.dart';
 import '../../../../routing/app_router.dart';
 import '../../../../shared/theme/app_typography.dart';
 import '../../bloc/auth_bloc.dart';
@@ -15,6 +16,33 @@ class KasirLoginScreen extends StatefulWidget {
 class _KasirLoginScreenState extends State<KasirLoginScreen> {
   String _enteredPin = '';
   String? _errorMessage;
+  String _deviceIdLabel = '-';
+  String _deviceLabel = 'Memuat info perangkat...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDevice();
+  }
+
+  Future<void> _loadDevice() async {
+    DeviceService? deviceService;
+    try {
+      deviceService = context.read<DeviceService>();
+    } catch (_) {
+      deviceService = null;
+    }
+    if (deviceService == null) {
+      if (mounted) setState(() => _deviceLabel = 'Perangkat Kasir');
+      return;
+    }
+    final info = await deviceService.getDeviceInfo();
+    if (!mounted) return;
+    setState(() {
+      _deviceIdLabel = info.deviceId;
+      _deviceLabel = '${info.deviceName} (${info.osVersion})';
+    });
+  }
 
   void _onKeyPress(String key) {
     if (_enteredPin.length < 6) {
@@ -294,7 +322,7 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'HW-ID: A9-8832',
+                        'ID: $_deviceIdLabel',
                         style: LpTypography.dataMonoSm.copyWith(color: const Color(0xFF64748B)),
                       ),
                     ],
@@ -313,7 +341,7 @@ class _KasirLoginScreenState extends State<KasirLoginScreen> {
                               style: LpTypography.bodySm.copyWith(color: const Color(0xFF94A3B8)),
                             ),
                             Text(
-                              'Tablet Kasir Utama #DEV-01 (Samsung Tab A9+)',
+                              _deviceLabel,
                               style: LpTypography.labelLg.copyWith(color: Colors.white),
                               overflow: TextOverflow.ellipsis,
                             ),
