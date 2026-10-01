@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/device/device_service.dart';
 import 'core/network/api_client.dart';
+import 'core/network/health_service.dart';
 import 'core/printer/thermal_printer_service.dart';
 import 'core/security/secure_storage_service.dart';
 import 'core/session/session_reset.dart';
@@ -159,6 +160,9 @@ class TumbuhApp extends StatelessWidget {
             apiClient: apiClient,
             outboxDao: outboxDao,
           ),
+        ),
+        RepositoryProvider<HealthService>(
+          create: (_) => HealthService(apiClient: apiClient),
         ),
         if (deviceService != null)
           RepositoryProvider<DeviceService>(create: (_) => deviceService!),

@@ -17,6 +17,7 @@ import 'package:tumbuh_mobile/features/pos/presentation/widgets/product_card.dar
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/product_options_modal.dart';
 import 'package:tumbuh_mobile/shared/theme/app_colors.dart';
 import 'package:tumbuh_mobile/shared/theme/app_typography.dart';
+import 'package:tumbuh_mobile/shared/widgets/connection_badge.dart';
 
 
 class PosTabletScreen extends StatefulWidget {
@@ -461,30 +462,8 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
               ],
             ),
           ),
-          // Center: Operational Status Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111923),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: LpColors.primaryGreen.withAlpha(100)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(color: LpColors.primaryLight, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Text('Online', style: LpTypography.labelSm.copyWith(color: LpColors.primaryLight, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 6),
-                Text('•', style: TextStyle(color: LpColors.borderDark)),
-                const SizedBox(width: 6),
-                Text('Sync 0 pending', style: LpTypography.dataCurrencySm.copyWith(color: LpColors.textSecondary, fontSize: 11)),
-              ],
-            ),
-          ),
+          // Center: connectivity / health badge
+          const ConnectionBadge(),
           // Right: Terminal Actions
           Row(
             children: [
