@@ -792,17 +792,20 @@ class PosRepository {
       return fallback;
     }
 
+    final tableId = await _resolveDineInTableId(tableNumber, orderType);
+    final payload = {
+      'orderType': _mapOrderType(orderType),
+      'items': _orderItemsPayload(items),
+      'tableId': ?tableId,
+      'park': true,
+    };
+    final idempotencyKey = const Uuid().v4();
+
     try {
-      final tableId = await _resolveDineInTableId(tableNumber, orderType);
       final response = await apiClient.dio.post(
         '/v1/orders',
-        data: {
-          'orderType': _mapOrderType(orderType),
-          'items': _orderItemsPayload(items),
-          'tableId': ?tableId,
-          'park': true,
-        },
-        options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+        data: payload,
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
       );
       final created = _asMap(response.data);
       final bill = ParkedBill(
@@ -817,7 +820,16 @@ class PosRepository {
       );
       _parkedBills.add(bill);
       return bill;
-    } catch (_) {
+    } catch (e) {
+      // Offline: queue the held order so it replays on reconnect.
+      if (_isOfflineError(e)) {
+        await outboxDao.enqueue(
+          endpoint: '/v1/orders',
+          method: 'POST',
+          payload: payload,
+          idempotencyKey: idempotencyKey,
+        );
+      }
       _parkedBills.add(fallback);
       return fallback;
     }

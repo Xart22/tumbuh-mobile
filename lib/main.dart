@@ -139,7 +139,10 @@ class TumbuhApp extends StatelessWidget {
           create: (_) => OwnerRepository(apiClient: apiClient),
         ),
         RepositoryProvider<OrdersRepository>(
-          create: (_) => OrdersRepository(apiClient: apiClient),
+          create: (_) => OrdersRepository(
+            apiClient: apiClient,
+            outboxDao: outboxDao,
+          ),
         ),
         if (deviceService != null)
           RepositoryProvider<DeviceService>(create: (_) => deviceService!),
