@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/printer/thermal_printer_service.dart';
 import '../../../../data/models/order_record.dart';
+import '../../../../data/models/printer_config.dart';
 import '../../../../data/remote/orders_repository.dart';
+import '../../../pos/bloc/pos_bloc.dart';
 import '../../../../shared/formatters/currency_formatter.dart';
 import '../../../../shared/formatters/date_formatter.dart';
 import '../../../../shared/theme/app_colors.dart';
@@ -409,7 +412,38 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  void _reprint(OrderRecord order) {
+  Future<void> _reprint(OrderRecord order) async {
+    // Prefer the physical LAN printer when configured; else show a preview.
+    PrinterDeviceConfig? config;
+    try {
+      config = context.read<PosBloc>().state.printerConfig;
+    } catch (_) {
+      config = null;
+    }
+    ThermalPrinterService? printer;
+    try {
+      printer = context.read<ThermalPrinterService>();
+    } catch (_) {
+      printer = null;
+    }
+
+    if (config != null &&
+        printer != null &&
+        config.connectionType == PrinterConnectionType.network) {
+      final bytes = printer.generateSimpleReceiptBytes(
+        orderNumber: order.orderNumber,
+        lines: order.items
+            .map((i) => (name: i.productName, qty: i.qty, total: i.unitPrice * i.qty))
+            .toList(),
+        grandTotal: order.total,
+        config: config,
+      );
+      final ok = await printer.sendBytes(config, bytes);
+      if (!mounted) return;
+      ok ? _snackOk('Struk dikirim ke printer LAN.') : _snack('Gagal kirim ke printer.');
+      return;
+    }
+
     final lines = order.items
         .map((i) => '${i.qty}x ${i.productName}  ${CurrencyFormatter.format(i.unitPrice * i.qty)}')
         .join('\n');

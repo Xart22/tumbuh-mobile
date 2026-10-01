@@ -91,6 +91,23 @@ class PosRepository {
     }
   }
 
+  /// Persisted active printer config, or null when none saved yet.
+  Future<PrinterDeviceConfig?> getPrinterConfig() async {
+    final json = await storage?.getPrinterConfig();
+    if (json == null || json.isEmpty) return null;
+    try {
+      return PrinterDeviceConfig.fromJson(
+        jsonDecode(json) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> savePrinterConfig(PrinterDeviceConfig config) async {
+    await storage?.savePrinterConfig(jsonEncode(config.toJson()));
+  }
+
   /// Cached outlet pricing (tax/service/rounding), or null when unavailable.
   Future<OutletPricing?> getOutletPricing() async {
     final json = await storage?.getOutletPricing();
@@ -1064,17 +1081,25 @@ class PosRepository {
     // Auto-Print Receipt if enabled
     if (payment.printPhysicalReceipt && printerConfig != null) {
       try {
-        final bytes = printerService.generateEscPosReceiptBytes(
-          orderId: orderId,
-          tableNumber: tableNumber,
-          cashierName: cashierName,
-          customerName: customerName,
-          orderType: orderType,
-          items: items,
-          totals: totals,
-          payment: payment,
-          config: printerConfig,
-        );
+        final bytes = printerConfig.role == PrinterRole.kitchen
+            ? printerService.generateKitchenTicketBytes(
+                orderId: orderId,
+                tableNumber: tableNumber,
+                orderType: orderType,
+                items: items,
+                config: printerConfig,
+              )
+            : printerService.generateEscPosReceiptBytes(
+                orderId: orderId,
+                tableNumber: tableNumber,
+                cashierName: cashierName,
+                customerName: customerName,
+                orderType: orderType,
+                items: items,
+                totals: totals,
+                payment: payment,
+                config: printerConfig,
+              );
         await printerService.sendBytes(printerConfig, bytes);
       } catch (_) {
         // Log printer error without failing transaction

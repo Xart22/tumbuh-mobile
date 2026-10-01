@@ -191,6 +191,25 @@ void main() {
       expect(bytes, isNotEmpty);
     });
 
+    test('Generates reprint receipt bytes', () {
+      const config = PrinterDeviceConfig(
+        id: 'p',
+        name: 'LAN',
+        role: PrinterRole.cashier,
+        connectionType: PrinterConnectionType.network,
+        connectionAddress: '192.168.1.10:9100',
+      );
+      final bytes = printerService.generateSimpleReceiptBytes(
+        orderNumber: 'TB-1',
+        lines: const [(name: 'Kopi', qty: 2, total: 44000)],
+        grandTotal: 44000,
+        config: config,
+      );
+      expect(bytes, isNotEmpty);
+      expect(bytes[0], 0x1B);
+      expect(bytes[1], 0x40);
+    });
+
     test('Parses network printer address with default port 9100', () {
       expect(
         ThermalPrinterService.parseNetworkAddress('192.168.1.150:9100'),

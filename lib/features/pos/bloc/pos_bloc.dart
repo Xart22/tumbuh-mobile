@@ -138,6 +138,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       final outlets = await posRepository.fetchOutlets();
       final activeOutletId = await posRepository.getActiveOutletId() ??
           (outlets.isNotEmpty ? outlets.first.id : null);
+      final savedPrinter = await posRepository.getPrinterConfig();
 
       emit(state.copyWith(
         status: PosStatus.ready,
@@ -148,6 +149,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         parkedBills: parkedBills,
         outlets: outlets,
         activeOutletId: activeOutletId,
+        printerConfig: savedPrinter ?? state.printerConfig,
         totals: totals,
       ));
     } catch (e) {
@@ -453,7 +455,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     }
   }
 
-  void _onUpdatePrinterConfig(PosUpdatePrinterConfig event, Emitter<PosState> emit) {
+  Future<void> _onUpdatePrinterConfig(PosUpdatePrinterConfig event, Emitter<PosState> emit) async {
+    await posRepository.savePrinterConfig(event.config);
     emit(state.copyWith(printerConfig: event.config));
   }
 }

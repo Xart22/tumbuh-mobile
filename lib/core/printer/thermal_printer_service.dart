@@ -314,6 +314,48 @@ class ThermalPrinterService {
     return bytes.toBytes();
   }
 
+  /// Compact receipt bytes for a reprint from order history.
+  Uint8List generateSimpleReceiptBytes({
+    required String orderNumber,
+    required List<({String name, int qty, int total})> lines,
+    required int grandTotal,
+    required PrinterDeviceConfig config,
+  }) {
+    final bytes = BytesBuilder();
+    final cols = config.paperWidth.columns;
+
+    bytes.add(escInit);
+    bytes.add(escAlignCenter);
+    bytes.add(escBoldOn);
+    bytes.add(escDoubleSize);
+    bytes.add(utf8.encode('$storeName\n'));
+    bytes.add(escNormalSize);
+    bytes.add(escBoldOff);
+    bytes.add(utf8.encode(
+      'CETAK ULANG #$orderNumber ${DateFormatter.formatShortDateTime(DateTime.now())}\n',
+    ));
+
+    bytes.add(escAlignLeft);
+    bytes.add(utf8.encode('${'-' * cols}\n'));
+    for (final line in lines) {
+      bytes.add(utf8.encode(
+        '${_justify('${line.qty}x ${line.name}', CurrencyFormatter.format(line.total), cols)}\n',
+      ));
+    }
+    bytes.add(utf8.encode('${'=' * cols}\n'));
+    bytes.add(escBoldOn);
+    bytes.add(utf8.encode(
+      '${_justify('TOTAL', CurrencyFormatter.format(grandTotal), cols)}\n',
+    ));
+    bytes.add(escBoldOff);
+
+    bytes.add(escFeedLine);
+    bytes.add(escFeedLine);
+    bytes.add(escFeedLine);
+    if (config.autoCut) bytes.add(escCutPaper);
+    return bytes.toBytes();
+  }
+
   /// Parses `host` or `host:port` into a network endpoint (default 9100).
   @visibleForTesting
   static (String, int) parseNetworkAddress(String address) {

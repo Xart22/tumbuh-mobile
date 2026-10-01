@@ -169,6 +169,9 @@ class TumbuhApp extends StatelessWidget {
         RepositoryProvider<HealthService>(
           create: (_) => HealthService(apiClient: apiClient),
         ),
+        RepositoryProvider<ThermalPrinterService>(
+          create: (_) => printerService,
+        ),
         if (deviceService != null)
           RepositoryProvider<DeviceService>(create: (_) => deviceService!),
       ],
