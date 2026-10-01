@@ -26,10 +26,14 @@ import 'features/pos/bloc/pos_bloc.dart';
 import 'features/pos/bloc/pos_event.dart';
 import 'features/shift/bloc/shift_bloc.dart';
 import 'routing/app_router.dart';
+import 'shared/formatters/date_formatter.dart';
 import 'shared/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Display all timestamps in Asia/Jakarta.
+  DateFormatter.initJakarta();
 
   // 1. Core security & hardware identification
   final secureStorage = SecureStorageService();

@@ -55,6 +55,7 @@ dependencies:
   local_auth: any
   qr_flutter: ^4.1.0
   sentry_flutter: ^8.14.2
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:
