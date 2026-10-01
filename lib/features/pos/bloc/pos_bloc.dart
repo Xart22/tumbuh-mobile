@@ -48,6 +48,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   Future<PosProduct?> lookupProduct(String code) =>
       posRepository.lookupByCode(code);
 
+  /// True once the backend marks an order paid (QRIS/e-wallet webhook settle).
+  Future<bool> isOrderPaid(String serverOrderId) async {
+    final status = await posRepository.fetchOrderPaymentStatus(serverOrderId);
+    return status == 'paid';
+  }
+
   OrderTotals _recalculateTotals(List<CartItem> items, int voucherDiscount) {
     final orderDraftItems = items.map((ci) {
       return OrderItemDraft(

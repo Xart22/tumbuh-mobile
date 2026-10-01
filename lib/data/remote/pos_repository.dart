@@ -341,12 +341,27 @@ class PosRepository {
     };
   }
 
-  Future<void> _createPayment(String orderId, OrderPaymentDetails payment) async {
-    await apiClient.dio.post(
+  Future<Map<String, dynamic>> _createPayment(
+    String orderId,
+    OrderPaymentDetails payment,
+  ) async {
+    final res = await apiClient.dio.post(
       '/v1/payments',
       data: {'orderId': orderId, ..._paymentBody(payment)},
       options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
     );
+    return _asMap(res.data);
+  }
+
+  /// Payment status for an order (`paid`, `awaiting_payment`, `credit`, ...).
+  /// Backend: `GET /v1/orders/:id`.
+  Future<String?> fetchOrderPaymentStatus(String orderId) async {
+    try {
+      final res = await apiClient.getWithRetry('/v1/orders/$orderId');
+      return (_asMap(res.data))['paymentStatus'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   static bool _isOfflineError(Object error) {
@@ -949,6 +964,7 @@ class PosRepository {
 
     bool isOnlineSuccess = false;
     String? serverOrderId;
+    Map<String, dynamic>? paymentResult;
     try {
       final response = await apiClient.dio.post(
         '/v1/orders',
@@ -961,7 +977,7 @@ class PosRepository {
         final created = response.data;
         if (created is Map && created['id'] is String) {
           serverOrderId = created['id'] as String;
-          await _createPayment(serverOrderId, payment);
+          paymentResult = await _createPayment(serverOrderId, payment);
         }
       }
     } catch (e) {
@@ -1002,12 +1018,18 @@ class PosRepository {
       }
     }
 
+    final qris = paymentResult?['qris'] as Map<String, dynamic>?;
     return {
       'orderId': orderId,
       'serverOrderId': serverOrderId,
       'isOnline': isOnlineSuccess,
       'idempotencyKey': idempotencyKey,
       'grandTotal': totals.grandTotal,
+      'paymentStatus': (paymentResult?['payments'] as List<dynamic>?)?.isNotEmpty == true
+          ? (paymentResult!['payments'] as List<dynamic>).first['status']
+          : null,
+      'qrString': qris?['qrString'],
+      'awaitingWebhook': qris?['awaitingWebhook'] ?? false,
     };
   }
 }

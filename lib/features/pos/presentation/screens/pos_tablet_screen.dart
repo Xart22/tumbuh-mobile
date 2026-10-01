@@ -10,6 +10,7 @@ import 'package:tumbuh_mobile/features/pos/bloc/pos_event.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_state.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/cart_panel.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/customer_picker_modal.dart';
+import 'package:tumbuh_mobile/features/pos/presentation/widgets/qris_payment_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/voucher_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/payment_modal.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/widgets/product_card.dart';
@@ -232,6 +233,21 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
               backgroundColor: LpColors.primaryGreen,
             ),
           );
+
+          final result = state.lastCheckoutResult;
+          final qrString = result?['qrString'] as String?;
+          final serverOrderId = result?['serverOrderId'] as String?;
+          if (qrString != null && qrString.isNotEmpty && serverOrderId != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              QrisPaymentModal.show(
+                context,
+                qrString: qrString,
+                grandTotal: (result?['grandTotal'] as int?) ?? state.totals.grandTotal,
+                serverOrderId: serverOrderId,
+              );
+            });
+          }
         }
       },
       builder: (context, state) {
