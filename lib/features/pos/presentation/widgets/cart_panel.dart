@@ -336,8 +336,9 @@ class CartPanel extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18, color: LpColors.textMuted),
                 onPressed: () => onRemoveItem(item.id),
+                tooltip: 'Hapus ${item.product.name}',
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
             ],
           ),
@@ -408,14 +409,18 @@ class CartPanel extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    InkWell(
-                      onTap: () => onUpdateQuantity(item.id, -1),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.remove, size: 14, color: Colors.white),
+                    Semantics(
+                      button: true,
+                      label: 'Kurangi jumlah',
+                      child: InkWell(
+                        onTap: () => onUpdateQuantity(item.id, -1),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.remove, size: 14, color: Colors.white),
+                        ),
                       ),
                     ),
                     SizedBox(
@@ -429,14 +434,18 @@ class CartPanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    InkWell(
-                      onTap: () => onUpdateQuantity(item.id, 1),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.add, size: 14, color: Colors.white),
+                    Semantics(
+                      button: true,
+                      label: 'Tambah jumlah',
+                      child: InkWell(
+                        onTap: () => onUpdateQuantity(item.id, 1),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.add, size: 14, color: Colors.white),
+                        ),
                       ),
                     ),
                   ],

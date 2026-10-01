@@ -856,7 +856,11 @@ class _PaymentModalState extends State<PaymentModal> {
               final isSel = _singleMethod == method;
               return SizedBox(
                 width: 150,
-                child: InkWell(
+                child: Semantics(
+                  button: true,
+                  selected: isSel,
+                  label: 'Metode pembayaran ${method.label}',
+                  child: InkWell(
                   onTap: () => setState(() => _singleMethod = method),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
@@ -878,8 +882,9 @@ class _PaymentModalState extends State<PaymentModal> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
+                     ),
+                   ),
+                 ),
                 ),
               );
             }).toList(),

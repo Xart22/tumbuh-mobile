@@ -18,7 +18,10 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLowStock = product.stockQuantity <= 6;
 
-    return Material(
+    return Semantics(
+      button: true,
+      label: '${product.name}, ${CurrencyFormatter.format(product.price)}',
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -225,6 +228,7 @@ class ProductCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
