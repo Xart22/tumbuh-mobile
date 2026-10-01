@@ -190,6 +190,17 @@ void main() {
 
       expect(bytes, isNotEmpty);
     });
+
+    test('Parses network printer address with default port 9100', () {
+      expect(
+        ThermalPrinterService.parseNetworkAddress('192.168.1.150:9100'),
+        ('192.168.1.150', 9100),
+      );
+      expect(
+        ThermalPrinterService.parseNetworkAddress('192.168.1.150'),
+        ('192.168.1.150', 9100),
+      );
+    });
   });
 
   group('PosBloc Tests', () {

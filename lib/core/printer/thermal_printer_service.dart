@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import '../../data/models/cart_item.dart';
 import '../../data/models/payment_model.dart';
 import '../../data/models/pos_product.dart';
@@ -8,6 +9,7 @@ import '../../data/models/printer_config.dart';
 import '../../shared/formatters/currency_formatter.dart';
 import '../../shared/formatters/date_formatter.dart';
 import '../../shared/math/order_math.dart';
+import 'printer_transport.dart';
 
 class ThermalPrinterService {
   // ESC/POS Command Constants
@@ -312,6 +314,25 @@ class ThermalPrinterService {
     return bytes.toBytes();
   }
 
+  /// Parses `host` or `host:port` into a network endpoint (default 9100).
+  @visibleForTesting
+  static (String, int) parseNetworkAddress(String address) {
+    final parts = address.split(':');
+    if (parts.length == 2) {
+      final port = int.tryParse(parts[1]);
+      if (port != null) return (parts[0], port);
+    }
+    return (address, 9100);
+  }
+
+  /// Sends already-generated ESC/POS bytes to the configured printer.
+  /// Network (raw TCP 9100) is supported; Bluetooth/USB need a platform plugin.
+  Future<bool> sendBytes(PrinterDeviceConfig config, Uint8List bytes) async {
+    if (config.connectionType != PrinterConnectionType.network) return false;
+    final (host, port) = parseNetworkAddress(config.connectionAddress);
+    return sendRawToNetwork(host, port, bytes);
+  }
+
   /// Test Print method
   Future<bool> testPrint({
     required PrinterDeviceConfig config,
@@ -355,6 +376,9 @@ class ThermalPrinterService {
       config: config,
     );
 
+    if (config.connectionType == PrinterConnectionType.network) {
+      return sendBytes(config, bytes);
+    }
     return bytes.isNotEmpty;
   }
 }

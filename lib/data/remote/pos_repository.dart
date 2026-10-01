@@ -1033,7 +1033,7 @@ class PosRepository {
     // Auto-Print Receipt if enabled
     if (payment.printPhysicalReceipt && printerConfig != null) {
       try {
-        printerService.generateEscPosReceiptBytes(
+        final bytes = printerService.generateEscPosReceiptBytes(
           orderId: orderId,
           tableNumber: tableNumber,
           cashierName: cashierName,
@@ -1044,6 +1044,7 @@ class PosRepository {
           payment: payment,
           config: printerConfig,
         );
+        await printerService.sendBytes(printerConfig, bytes);
       } catch (_) {
         // Log printer error without failing transaction
       }
