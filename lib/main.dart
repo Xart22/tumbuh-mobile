@@ -201,7 +201,8 @@ class _SessionResetListenerState extends State<_SessionResetListener> {
     _sub = SessionReset.instance.stream.listen((_) {
       if (!mounted) return;
       context.read<AuthBloc>().add(AuthLogoutRequested());
-      context.read<PosBloc>().add(const PosClearCart());
+      context.read<PosBloc>().add(const PosSessionReset());
+      context.read<ShiftBloc>().add(ShiftSessionReset());
     });
   }
 

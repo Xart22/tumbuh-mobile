@@ -24,6 +24,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosUpdateCartQuantity>(_onUpdateCartQuantity);
     on<PosRemoveCartItem>(_onRemoveCartItem);
     on<PosClearCart>(_onClearCart);
+    on<PosSessionReset>(_onSessionReset);
     on<PosSetTableNumber>(_onSetTableNumber);
     on<PosSetOrderType>(_onSetOrderType);
     on<PosSetCustomer>(_onSetCustomer);
@@ -222,6 +223,23 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   void _onClearCart(PosClearCart event, Emitter<PosState> emit) {
     final totals = _recalculateTotals(const [], 0);
     emit(state.copyWith(cartItems: const [], voucherDiscount: 0, totals: totals));
+  }
+
+  void _onSessionReset(PosSessionReset event, Emitter<PosState> emit) {
+    posRepository.clearLocalParkedBills();
+    final totals = _recalculateTotals(const [], 0);
+    emit(state.copyWith(
+      cartItems: const [],
+      voucherDiscount: 0,
+      clearVoucher: true,
+      clearVoucherError: true,
+      clearCustomer: true,
+      customerName: 'Tamu',
+      isMember: false,
+      customerResults: const [],
+      parkedBills: const [],
+      totals: totals,
+    ));
   }
 
   void _onSetTableNumber(PosSetTableNumber event, Emitter<PosState> emit) {

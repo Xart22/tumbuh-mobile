@@ -13,6 +13,9 @@ abstract class ShiftEvent extends Equatable {
 
 class ShiftLoadCurrent extends ShiftEvent {}
 
+/// Full reset on logout / 401: drop the in-memory active shift.
+class ShiftSessionReset extends ShiftEvent {}
+
 class ShiftOpenRequested extends ShiftEvent {
   final int initialFloat;
   final String cashierId;
@@ -125,6 +128,7 @@ class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
       : _shiftRepository = shiftRepository,
         super(ShiftInitial()) {
     on<ShiftLoadCurrent>(_onLoadCurrent);
+    on<ShiftSessionReset>(_onSessionReset);
     on<ShiftOpenRequested>(_onOpenShift);
     on<ShiftDenominationAdjusted>(_onAdjustDenomination);
     on<ShiftDenominationSet>(_onSetDenomination);
@@ -155,6 +159,10 @@ class ShiftBloc extends Bloc<ShiftEvent, ShiftState> {
     } catch (e) {
       emit(ShiftError(e.toString()));
     }
+  }
+
+  void _onSessionReset(ShiftSessionReset event, Emitter<ShiftState> emit) {
+    emit(ShiftNoActiveShift());
   }
 
   Future<void> _onOpenShift(ShiftOpenRequested event, Emitter<ShiftState> emit) async {

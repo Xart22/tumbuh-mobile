@@ -805,6 +805,9 @@ class PosRepository {
 
   List<ParkedBill> getParkedBills() => List.unmodifiable(_parkedBills);
 
+  /// Drops the in-memory parked bills (used on session reset/logout).
+  void clearLocalParkedBills() => _parkedBills.clear();
+
   /// Resume a parked bill: unhold server-side (best-effort) and drop locally.
   Future<void> resumeParkedBill(String id) async {
     if (fetchFromNetwork) {

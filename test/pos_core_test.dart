@@ -275,5 +275,21 @@ void main() {
       expect(posBloc.state.cartItems.length, 3);
       expect(posBloc.state.parkedBills.isEmpty, isTrue);
     });
+
+    test('PosSessionReset clears cart, parked bills and customer', () async {
+      posBloc.add(const PosLoadMenu());
+      await posBloc.stream.firstWhere((s) => s.status == PosStatus.ready);
+
+      posBloc.add(const PosParkBill());
+      await posBloc.stream.firstWhere((s) => s.cartItems.isEmpty);
+      expect(posBloc.state.parkedBills, isNotEmpty);
+
+      posBloc.add(const PosSessionReset());
+      await posBloc.stream.firstWhere((s) => s.parkedBills.isEmpty);
+
+      expect(posBloc.state.cartItems, isEmpty);
+      expect(posBloc.state.customerId, isNull);
+      expect(posBloc.state.voucherDiscount, 0);
+    });
   });
 }

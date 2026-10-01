@@ -69,6 +69,11 @@ class PosClearCart extends PosEvent {
   const PosClearCart();
 }
 
+/// Full per-session reset (logout / 401): cart, parkir, customer, voucher.
+class PosSessionReset extends PosEvent {
+  const PosSessionReset();
+}
+
 class PosSetTableNumber extends PosEvent {
   final String tableNumber;
   const PosSetTableNumber(this.tableNumber);
