@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/device/device_service.dart';
 import '../../core/network/api_client.dart';
@@ -40,12 +41,12 @@ class ShiftRepository {
       final shift = ShiftModel.fromBackend(current as Map<String, dynamic>);
       await _storage.saveActiveShiftId(shift.id);
       return shift;
-    } on ApiException catch (e) {
-      if (e is NetworkOfflineException || e is NotFoundException) {
+    } on DioException catch (e) {
+      final api = apiExceptionFrom(e);
+      if (api is NetworkOfflineException || api is NotFoundException) {
         // Fallback to locally tracked active shift if any
         final activeShiftId = await _storage.getActiveShiftId();
         if (activeShiftId != null) {
-          // Return simulated offline shift snapshot
           return ShiftModel(
             id: activeShiftId,
             shiftNumber: 1,
@@ -64,6 +65,7 @@ class ShiftRepository {
         }
         return null;
       }
+      if (api != null) throw api;
       rethrow;
     }
   }
@@ -96,8 +98,9 @@ class ShiftRepository {
       final shift = ShiftModel.fromBackend(response.data as Map<String, dynamic>);
       await _storage.saveActiveShiftId(shift.id);
       return shift;
-    } on ApiException catch (e) {
-      if (e is NetworkOfflineException) {
+    } on DioException catch (e) {
+      final api = apiExceptionFrom(e);
+      if (api is NetworkOfflineException) {
         // Offline-first: enqueue into Outbox
         await _outboxDao.enqueue(
           endpoint: '/v1/shifts/open',
@@ -123,6 +126,7 @@ class ShiftRepository {
         await _storage.saveActiveShiftId(newShiftId);
         return offlineShift;
       }
+      if (api != null) throw api;
       rethrow;
     }
   }
@@ -148,8 +152,9 @@ class ShiftRepository {
       final shift = ShiftModel.fromBackend(response.data as Map<String, dynamic>);
       await _storage.clearShift();
       return shift;
-    } on ApiException catch (e) {
-      if (e is NetworkOfflineException) {
+    } on DioException catch (e) {
+      final api = apiExceptionFrom(e);
+      if (api is NetworkOfflineException) {
         // Enqueue into outbox
         await _outboxDao.enqueue(
           endpoint: '/v1/shifts/$shiftId/close',
@@ -178,6 +183,7 @@ class ShiftRepository {
           status: 'closed',
         );
       }
+      if (api != null) throw api;
       rethrow;
     }
   }

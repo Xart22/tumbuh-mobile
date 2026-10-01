@@ -74,9 +74,11 @@ class AuthRepository {
       await _storage.saveOfflinePinHash(pinHash);
 
       return user;
-    } on ApiException catch (e) {
-      if (e is NetworkOfflineException) {
-        // Offline verification check
+    } on DioException catch (e) {
+      final api = apiExceptionFrom(e);
+
+      if (api is NetworkOfflineException) {
+        // Offline verification against the cached PIN hash.
         final cachedHash = await _storage.getOfflinePinHash();
         final inputHash = sha256.convert(utf8.encode('$deviceId:$activeOutletId:$pin')).toString();
 
@@ -96,9 +98,8 @@ class AuthRepository {
           message: 'Mode offline: PIN kasir tidak cocok dengan kredensial tersimpan di tablet ini.',
         );
       }
-      rethrow;
-    } on DioException catch (e) {
-      if (e.error is ApiException) throw e.error as ApiException;
+
+      if (api != null) throw api;
       rethrow;
     }
   }

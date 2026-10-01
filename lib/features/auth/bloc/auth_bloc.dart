@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/analytics/analytics_service.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../data/models/auth_user.dart';
 import '../../../data/models/outlet_summary.dart';
@@ -193,7 +194,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       _analytics?.log('login_kasir_failed');
       final biometric = await _authRepository.canCheckBiometrics();
-      emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
+      emit(AuthFailure(apiExceptionFrom(e)?.message ?? 'Gagal masuk. Coba lagi.'));
       emit(AuthUnauthenticated(biometricAvailable: biometric));
     }
   }
@@ -209,7 +210,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final outlets = await _authRepository.fetchOutlets();
       emit(AuthOwnerOutletsLoaded(outlets));
     } catch (e) {
-      emit(AuthFailure(e.toString().replaceAll('Exception: ', '')));
+      emit(AuthFailure(apiExceptionFrom(e)?.message ?? 'Gagal masuk owner. Coba lagi.'));
     }
   }
 

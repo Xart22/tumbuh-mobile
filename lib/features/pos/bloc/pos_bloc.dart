@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/analytics/analytics_service.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../../../data/models/cart_item.dart';
 import '../../../data/models/outlet_pricing.dart';
 import '../../../data/models/pos_product.dart';
@@ -450,7 +451,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       analytics?.log('order_submit_failed', {'error': e.toString()});
       emit(state.copyWith(
         status: PosStatus.error,
-        errorMessage: 'Gagal menyelesaikan pembayaran: $e',
+        errorMessage:
+            'Gagal menyelesaikan pembayaran: ${apiExceptionFrom(e)?.message ?? e}',
       ));
     }
   }

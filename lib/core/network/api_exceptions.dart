@@ -1,3 +1,17 @@
+import 'package:dio/dio.dart';
+
+/// Extracts the typed [ApiException] from whatever Dio threw. The interceptor
+/// wraps domain errors inside `DioException.error`, so `on ApiException catch`
+/// alone never fires — use this instead.
+ApiException? apiExceptionFrom(Object error) {
+  if (error is ApiException) return error;
+  if (error is DioException) {
+    final inner = error.error;
+    if (inner is ApiException) return inner;
+  }
+  return null;
+}
+
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
