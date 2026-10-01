@@ -9,12 +9,16 @@ class ModifierOption extends Equatable {
   final String? subtitle;
   final bool isDefault;
 
+  /// Owning modifier group id (backend UUID); null for bundled seed options.
+  final String? groupId;
+
   const ModifierOption({
     required this.id,
     required this.name,
     this.priceDelta = 0,
     this.subtitle,
     this.isDefault = false,
+    this.groupId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +27,7 @@ class ModifierOption extends Equatable {
     'priceDelta': priceDelta,
     'subtitle': subtitle,
     'isDefault': isDefault,
+    'groupId': groupId,
   };
 
   factory ModifierOption.fromJson(Map<String, dynamic> json) => ModifierOption(
@@ -31,10 +36,11 @@ class ModifierOption extends Equatable {
     priceDelta: (json['priceDelta'] as num?)?.toInt() ?? 0,
     subtitle: json['subtitle'] as String?,
     isDefault: json['isDefault'] as bool? ?? false,
+    groupId: json['groupId'] as String?,
   );
 
   @override
-  List<Object?> get props => [id, name, priceDelta, subtitle, isDefault];
+  List<Object?> get props => [id, name, priceDelta, subtitle, isDefault, groupId];
 }
 
 class ModifierGroup extends Equatable {

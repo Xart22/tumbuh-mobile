@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tumbuh_mobile/data/models/product_modifier.dart';
 import 'package:tumbuh_mobile/data/models/voucher_validation.dart';
 import 'package:tumbuh_mobile/data/remote/pos_repository.dart';
 
@@ -52,6 +53,27 @@ void main() {
       // 22000 base + 6000 modifier reconstructs the original 28000.
       expect(bill.items.first.product.price, 22000);
       expect(bill.items.first.unitPrice, 28000);
+    });
+
+    test('mapModifierGroup filters inactive options and tags groupId', () {
+      final group = PosRepository.mapModifierGroup({
+        'id': 'g1',
+        'name': 'Ukuran',
+        'isRequired': true,
+        'minSelect': 1,
+        'maxSelect': 1,
+        'modifiers': [
+          {'id': 'm1', 'name': 'Large', 'priceAddition': 5000, 'isActive': true},
+          {'id': 'm2', 'name': 'Off', 'priceAddition': 0, 'isActive': false},
+        ],
+      });
+      expect(group.name, 'Ukuran');
+      expect(group.isRequired, isTrue);
+      expect(group.selectionType, ModifierSelectionType.singleRequired);
+      expect(group.options, hasLength(1));
+      expect(group.options.first.id, 'm1');
+      expect(group.options.first.priceDelta, 5000);
+      expect(group.options.first.groupId, 'g1');
     });
 
     test('VoucherValidation maps backend validate response', () {

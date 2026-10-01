@@ -447,6 +447,48 @@ class PosRepository {
     return cached.isNotEmpty ? cached : defaultProducts;
   }
 
+  @visibleForTesting
+  static ModifierGroup mapModifierGroup(Map<String, dynamic> json) {
+    final maxSelect = (json['maxSelect'] as num?)?.toInt() ?? 1;
+    final groupId = json['id'] as String;
+    final options = ((json['modifiers'] as List<dynamic>?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .where((m) => m['isActive'] as bool? ?? true)
+        .map((m) => ModifierOption(
+              id: m['id'] as String,
+              name: m['name'] as String? ?? 'Opsi',
+              priceDelta: (m['priceAddition'] as num?)?.toInt() ?? 0,
+              groupId: groupId,
+            ))
+        .toList();
+
+    return ModifierGroup(
+      id: groupId,
+      name: json['name'] as String? ?? 'Opsi',
+      selectionType: maxSelect <= 1
+          ? ModifierSelectionType.singleRequired
+          : ModifierSelectionType.multiOptional,
+      isRequired: json['isRequired'] as bool? ?? false,
+      minSelection: (json['minSelect'] as num?)?.toInt() ?? 0,
+      maxSelection: maxSelect,
+      options: options,
+    );
+  }
+
+  /// Fetches modifier groups for a product. Backend:
+  /// `GET /v1/modifiers/products/:productId/groups`.
+  Future<List<ModifierGroup>> getProductModifiers(String productId) async {
+    try {
+      final res = await apiClient.getWithRetry(
+        '/v1/modifiers/products/$productId/groups',
+      );
+      final items = (res.data as List<dynamic>).cast<Map<String, dynamic>>();
+      return items.map(mapModifierGroup).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Searches CRM customers. Backend: `GET /v1/customers?search=`.
   Future<List<CustomerSummary>> searchCustomers(String query) async {
     try {
@@ -641,13 +683,39 @@ class PosRepository {
     });
   }
 
+  /// Groups selected modifiers by their backend group id (seed options have
+  /// none and are folded into unitPrice instead).
+  static List<Map<String, dynamic>> _modifierGroupsPayload(CartItem item) {
+    final byGroup = <String, List<ModifierOption>>{};
+    for (final m in item.selectedModifiers) {
+      final groupId = m.groupId;
+      if (groupId == null || groupId.isEmpty) continue;
+      byGroup.putIfAbsent(groupId, () => []).add(m);
+    }
+    return byGroup.entries
+        .map((e) => {
+              'groupId': e.key,
+              'selectedModifiers': e.value
+                  .map((m) => {
+                        'modifierId': m.id,
+                        if (m.name.isNotEmpty) 'modifierName': m.name,
+                      })
+                  .toList(),
+            })
+        .toList();
+  }
+
   List<Map<String, dynamic>> _orderItemsPayload(List<CartItem> items) => items
-      .map((i) => {
-            'productId': i.product.id,
-            'qty': i.quantity,
-            'unitPrice': i.unitPrice,
-            if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,
-          })
+      .map((i) {
+        final modifierGroups = _modifierGroupsPayload(i);
+        return {
+          'productId': i.product.id,
+          'qty': i.quantity,
+          'unitPrice': i.unitPrice,
+          if (i.notes != null && i.notes!.isNotEmpty) 'notes': i.notes,
+          if (modifierGroups.isNotEmpty) 'modifierGroups': modifierGroups,
+        };
+      })
       .toList();
 
   Future<String?> _resolveDineInTableId(String tableNumber, String orderType) {

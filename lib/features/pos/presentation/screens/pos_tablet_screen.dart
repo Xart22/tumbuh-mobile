@@ -44,11 +44,18 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
     super.dispose();
   }
 
-  void _onProductTapped(PosProduct product) {
-    if (product.hasModifiers) {
+  Future<void> _onProductTapped(PosProduct product) async {
+    var groups = product.modifierGroups;
+    if (groups.isEmpty) {
+      groups = await context.read<PosBloc>().loadModifiers(product.id);
+    }
+    if (!mounted) return;
+
+    if (groups.isNotEmpty) {
       ProductOptionsModal.show(
         context,
         product: product,
+        groups: groups,
         onAddToCart: (item) {
           context.read<PosBloc>().add(PosAddToCart(item));
         },

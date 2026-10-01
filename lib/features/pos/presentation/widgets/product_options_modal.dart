@@ -8,17 +8,22 @@ import '../../../../shared/theme/app_typography.dart';
 
 class ProductOptionsModal extends StatefulWidget {
   final PosProduct product;
+
+  /// Modifier groups to render (already loaded/merged by the caller).
+  final List<ModifierGroup> groups;
   final Function(CartItem item) onAddToCart;
 
   const ProductOptionsModal({
     super.key,
     required this.product,
+    required this.groups,
     required this.onAddToCart,
   });
 
   static Future<void> show(
     BuildContext context, {
     required PosProduct product,
+    required List<ModifierGroup> groups,
     required Function(CartItem item) onAddToCart,
   }) {
     return showDialog(
@@ -27,6 +32,7 @@ class ProductOptionsModal extends StatefulWidget {
       barrierColor: LpColors.darkScrim,
       builder: (ctx) => ProductOptionsModal(
         product: product,
+        groups: groups,
         onAddToCart: onAddToCart,
       ),
     );
@@ -45,7 +51,7 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
   void initState() {
     super.initState();
     // Initialize default selections
-    for (final group in widget.product.modifierGroups) {
+    for (final group in widget.groups) {
       final defaults = group.options.where((o) => o.isDefault).toList();
       if (defaults.isNotEmpty) {
         _selectedModifiers[group.id] = defaults;
@@ -142,7 +148,7 @@ class _ProductOptionsModalState extends State<ProductOptionsModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final group in widget.product.modifierGroups) ...[
+                    for (final group in widget.groups) ...[
                       _buildModifierGroup(group),
                       const SizedBox(height: 24),
                     ],

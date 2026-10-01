@@ -40,6 +40,10 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosUpdatePrinterConfig>(_onUpdatePrinterConfig);
   }
 
+  /// Loads backend modifier groups for a product (used by the options modal).
+  Future<List<ModifierGroup>> loadModifiers(String productId) =>
+      posRepository.getProductModifiers(productId);
+
   OrderTotals _recalculateTotals(List<CartItem> items, int voucherDiscount) {
     final orderDraftItems = items.map((ci) {
       return OrderItemDraft(
