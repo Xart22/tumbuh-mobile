@@ -42,6 +42,30 @@ class OrdersRepository {
         options: _idempotent(),
       );
 
+  /// Merge a source order into a target. Backend: `POST /v1/orders/:id/merge`.
+  Future<void> mergeOrder(String sourceOrderId, String targetOrderId) =>
+      apiClient.dio.post(
+        '/v1/orders/$sourceOrderId/merge',
+        data: {'targetOrderId': targetOrderId},
+        options: _idempotent(),
+      );
+
+  /// Split selected quantities into a new order. Backend:
+  /// `POST /v1/orders/:id/split` with `{lines:[{orderItemId, qty}]}`.
+  Future<void> splitOrder(
+    String orderId,
+    List<({String itemId, int qty})> lines,
+  ) =>
+      apiClient.dio.post(
+        '/v1/orders/$orderId/split',
+        data: {
+          'lines': lines
+              .map((l) => {'orderItemId': l.itemId, 'qty': l.qty})
+              .toList(),
+        },
+        options: _idempotent(),
+      );
+
   /// Settle a credit (piutang) order. Backend: `POST /v1/orders/:id/credit-settle`.
   Future<void> settleCredit(String id) => apiClient.dio.post(
         '/v1/orders/$id/credit-settle',

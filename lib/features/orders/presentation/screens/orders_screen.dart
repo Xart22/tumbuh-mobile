@@ -208,6 +208,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   children: [
                     Text(CurrencyFormatter.format(item.unitPrice * item.qty), style: const TextStyle(color: Colors.white70)),
                     IconButton(
+                      icon: const Icon(Icons.call_split_rounded, size: 18, color: LpColors.accentAmber),
+                      tooltip: 'Split item',
+                      onPressed: () => _splitItem(ctx, order.id, item),
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.block_rounded, size: 18, color: LpColors.critical),
                       tooltip: 'Void item',
                       onPressed: () => _voidItem(ctx, order.id, item.id),
@@ -233,6 +238,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       icon: const Icon(Icons.price_check_rounded, color: LpColors.accentAmber),
                       label: const Text('Pelunasan'),
                     ),
+                  TextButton.icon(
+                    onPressed: () => _mergeOrder(order),
+                    icon: const Icon(Icons.merge_type_rounded, color: LpColors.primaryLight),
+                    label: const Text('Gabung'),
+                  ),
                   TextButton.icon(
                     onPressed: () => _voidOrder(ctx, order.id),
                     icon: const Icon(Icons.delete_forever_rounded, color: LpColors.critical),
@@ -282,6 +292,96 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _snackOk('Piutang berhasil dilunasi.');
     } catch (e) {
       _snack('Gagal pelunasan: $e');
+    }
+  }
+
+  Future<void> _splitItem(
+    BuildContext ctx,
+    String orderId,
+    OrderItemLine item,
+  ) async {
+    final navigator = Navigator.of(ctx);
+    final controller = TextEditingController(text: item.qty.toString());
+    final qtyStr = await showDialog<String>(
+      context: ctx,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: LpColors.surfaceCard,
+        title: Text('Split ${item.productName}', style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(hintText: 'Qty (maks ${item.qty})'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dctx).pop(), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () => Navigator.of(dctx).pop(controller.text.trim()),
+            child: const Text('Split'),
+          ),
+        ],
+      ),
+    );
+    final qty = int.tryParse(qtyStr ?? '') ?? 0;
+    if (qty <= 0 || qty > item.qty) {
+      if (qtyStr != null) _snack('Qty split tidak valid (1..${item.qty}).');
+      return;
+    }
+    try {
+      await _repository!.splitOrder(orderId, [(itemId: item.id, qty: qty)]);
+      navigator.pop();
+      _load();
+      _snackOk('Item di-split ke order baru.');
+    } catch (e) {
+      _snack('Gagal split: $e');
+    }
+  }
+
+  Future<void> _mergeOrder(OrderRecord order) async {
+    final navigator = Navigator.of(context);
+    final repo = _repository!;
+
+    List<OrderRecord> targets;
+    try {
+      final all = await repo.fetchOrders();
+      const openStatuses = {'confirmed', 'held', 'in_kitchen', 'ready'};
+      targets = all
+          .where((o) => o.id != order.id && openStatuses.contains(o.status))
+          .toList();
+    } catch (e) {
+      _snack('Gagal memuat order target: $e');
+      return;
+    }
+    if (!mounted) return;
+    if (targets.isEmpty) {
+      _snack('Tidak ada order terbuka untuk digabung.');
+      return;
+    }
+
+    final targetId = await showDialog<String>(
+      context: context,
+      builder: (dctx) => SimpleDialog(
+        backgroundColor: LpColors.surfaceCard,
+        title: const Text('Gabung ke Order', style: TextStyle(color: Colors.white)),
+        children: targets
+            .map((o) => SimpleDialogOption(
+                  onPressed: () => Navigator.of(dctx).pop(o.id),
+                  child: Text('#${o.orderNumber} • ${o.status}',
+                      style: const TextStyle(color: Colors.white)),
+                ))
+            .toList(),
+      ),
+    );
+    if (targetId == null) return;
+
+    try {
+      await repo.mergeOrder(order.id, targetId);
+      navigator.pop();
+      _load();
+      _snackOk('Order digabung.');
+    } catch (e) {
+      _snack('Gagal gabung: $e');
     }
   }
 
