@@ -250,7 +250,7 @@ void main() {
       await inMemoryDb.close();
     });
 
-    test('PosLoadMenu initializes categories, products, and default cart', () async {
+    test('PosLoadMenu initializes catalog with an empty cart', () async {
       posBloc.add(const PosLoadMenu());
 
       await expectLater(
@@ -261,8 +261,8 @@ void main() {
               .having((s) => s.status, 'status', PosStatus.ready)
               .having((s) => s.categories.length, 'categories count', greaterThan(0))
               .having((s) => s.allProducts.length, 'products count', greaterThan(0))
-              .having((s) => s.cartItems.length, 'initial cart items', 3)
-              .having((s) => s.totals.grandTotal, 'initial grand total', 74800),
+              .having((s) => s.cartItems, 'cart items', isEmpty)
+              .having((s) => s.totals.grandTotal, 'initial grand total', 0),
         ]),
       );
     });
@@ -288,7 +288,10 @@ void main() {
       posBloc.add(const PosLoadMenu());
       await posBloc.stream.firstWhere((s) => s.status == PosStatus.ready);
 
-      expect(posBloc.state.cartItems, isNotEmpty);
+      final product = posBloc.state.allProducts.first;
+      posBloc.add(PosAddToCart(CartItem.create(product: product, quantity: 2)));
+      await posBloc.stream.firstWhere((s) => s.cartItems.isNotEmpty);
+      expect(posBloc.state.cartItems.length, 1);
 
       // Park current bill
       posBloc.add(const PosParkBill());
@@ -296,19 +299,23 @@ void main() {
 
       expect(posBloc.state.parkedBills.length, 1);
       final parked = posBloc.state.parkedBills.first;
-      expect(parked.items.length, 3);
+      expect(parked.items.length, 1);
 
       // Restore parked bill
       posBloc.add(PosRestoreParkedBill(parked.id));
       await posBloc.stream.firstWhere((s) => s.cartItems.isNotEmpty);
 
-      expect(posBloc.state.cartItems.length, 3);
+      expect(posBloc.state.cartItems.length, 1);
       expect(posBloc.state.parkedBills.isEmpty, isTrue);
     });
 
     test('PosSessionReset clears cart, parked bills and customer', () async {
       posBloc.add(const PosLoadMenu());
       await posBloc.stream.firstWhere((s) => s.status == PosStatus.ready);
+
+      final product = posBloc.state.allProducts.first;
+      posBloc.add(PosAddToCart(CartItem.create(product: product)));
+      await posBloc.stream.firstWhere((s) => s.cartItems.isNotEmpty);
 
       posBloc.add(const PosParkBill());
       await posBloc.stream.firstWhere((s) => s.cartItems.isEmpty);

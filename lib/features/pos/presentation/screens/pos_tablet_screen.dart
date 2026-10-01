@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tumbuh_mobile/data/models/cart_item.dart';
 import 'package:tumbuh_mobile/data/models/pos_product.dart';
+import 'package:tumbuh_mobile/features/auth/bloc/auth_bloc.dart';
 
 
 import 'package:tumbuh_mobile/features/pos/bloc/pos_bloc.dart';
@@ -150,18 +151,28 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
     );
   }
 
+  String _currentCashierName(BuildContext context) {
+    try {
+      final auth = context.read<AuthBloc>().state;
+      if (auth is AuthKasirAuthenticated) return auth.user.name;
+    } catch (_) {
+      // No AuthBloc in scope (e.g. widget tests).
+    }
+    return 'Kasir';
+  }
+
   void _openPaymentModal(BuildContext context, PosState state) {
     PaymentModal.show(
       context,
       grandTotal: state.totals.grandTotal,
       tableNumber: state.tableNumber,
       customerName: state.customerName,
-      customerPhone: '0812-3456-7890',
+      customerPhone: state.customerPhone,
       autoStartQrisTimer: widget.enableQrisTimer,
       onConfirmPayment: (paymentDetails) {
         context.read<PosBloc>().add(PosSubmitPayment(
           paymentDetails: paymentDetails,
-          cashierName: 'Barista Rama',
+          cashierName: _currentCashierName(context),
         ));
       },
       onOpenCashDrawer: () {
@@ -487,7 +498,7 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Kasir: Barista Rama (Shift Pagi)',
+                        'Kasir: ${_currentCashierName(context)}',
                         style: LpTypography.bodySm.copyWith(color: LpColors.textMuted, fontSize: 11),
                         overflow: TextOverflow.ellipsis,
                       ),

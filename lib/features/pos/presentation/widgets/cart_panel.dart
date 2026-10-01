@@ -171,7 +171,7 @@ class CartPanel extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        'Member: $customerName ⭐',
+                        isMember ? 'Member: $customerName ⭐' : 'Tambah Pelanggan',
                         overflow: TextOverflow.ellipsis,
                         style: LpTypography.bodySm.copyWith(
                           fontSize: 11,

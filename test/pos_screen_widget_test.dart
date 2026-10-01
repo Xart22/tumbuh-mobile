@@ -12,7 +12,6 @@ import 'package:tumbuh_mobile/data/remote/pos_repository.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_bloc.dart';
 import 'package:tumbuh_mobile/features/pos/bloc/pos_event.dart';
 import 'package:tumbuh_mobile/features/pos/presentation/screens/pos_tablet_screen.dart';
-import 'package:tumbuh_mobile/features/pos/presentation/widgets/payment_modal.dart';
 import 'package:tumbuh_mobile/shared/theme/app_theme.dart';
 
 void main() {
@@ -58,7 +57,7 @@ void main() {
     expect(find.text('Tumbuh'), findsOneWidget);
     expect(find.text('POS'), findsOneWidget);
     expect(find.text('Kopi Kita - Cabang Tebet'), findsOneWidget);
-    expect(find.text('Kasir: Barista Rama (Shift Pagi)'), findsOneWidget);
+    expect(find.text('Kasir: Kasir'), findsOneWidget);
     expect(find.text('Buka Laci Kas'), findsOneWidget);
     expect(find.text('Ganti Shift'), findsOneWidget);
 
@@ -68,40 +67,17 @@ void main() {
     expect(find.text('Kopi Susu Gula Aren'), findsWidgets);
     expect(find.text('Americano Iced'), findsWidgets);
 
-    // 3. Cart ticket drawer (Meja 04, Dine-in, items)
-    expect(find.text('Meja 04'), findsOneWidget);
+    // 3. Cart drawer starts empty (no fabricated demo order)
+    expect(find.text('Meja -'), findsOneWidget);
     expect(find.text('Dine-in'), findsOneWidget);
-    expect(find.text('Member: Dian P. ⭐'), findsOneWidget);
+    expect(find.text('Tambah Pelanggan'), findsOneWidget);
     expect(find.text('Parkir Bill (F2)'), findsOneWidget);
+    expect(find.text('Subtotal (0 item)'), findsOneWidget);
 
-    // 4. Exact Stitch financial totals (78k - 10k + 6.8k = 74.8k)
-    expect(find.text('Subtotal (3 item)'), findsOneWidget);
-    expect(find.text('Rp 78.000'), findsOneWidget);
-    expect(find.text('Diskon Voucher Member'), findsOneWidget);
-    expect(find.text('-Rp 10.000'), findsOneWidget);
-    expect(find.text('Pajak Restoran (PB1 10%)'), findsOneWidget);
-    expect(find.text('Rp 6.800'), findsOneWidget);
-    expect(find.text('Rp 74.800'), findsWidgets);
-
-    // 5. Quick Payment buttons and checkout button
+    // 4. Quick payment buttons and checkout button
     expect(find.text('💵 Tunai'), findsOneWidget);
     expect(find.text('📱 QRIS'), findsOneWidget);
     expect(find.text('💳 Debit'), findsOneWidget);
-    expect(find.text('Lanjut Bayar (Rp 74.800)'), findsOneWidget);
-
-    // 6. Test opening payment modal
-    await tester.tap(find.text('Lanjut Bayar (Rp 74.800)'));
-    await tester.pumpAndSettle();
-
-    // Verify Payment Modal opened matching Stitch Screen 2b3e8ada336846cd9a08e31d0014dbcf
-    expect(find.text('Pembayaran Pesanan'), findsOneWidget);
-    expect(find.text('Split Bayar / Pisah Tagihan (2 Metode)'), findsOneWidget);
-    expect(find.text('QRIS Dinamis Otomatis'), findsOneWidget);
-    expect(find.text('Tunai / Cash Kasir'), findsOneWidget);
-    expect(find.text('Konfirmasi Pelunasan & Selesaikan Order (Enter)'), findsOneWidget);
-
-    // Dismiss dialog
-    Navigator.of(tester.element(find.byType(PaymentModal))).pop();
-    await tester.pumpAndSettle();
+    expect(find.text('Lanjut Bayar (Rp 0)'), findsOneWidget);
   });
 }

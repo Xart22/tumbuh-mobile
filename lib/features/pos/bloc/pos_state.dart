@@ -21,6 +21,7 @@ class PosState extends Equatable {
   final String orderType; // 'Dine-in' or 'Takeaway'
   final String customerName;
   final String? customerId;
+  final String? customerPhone;
   final bool isMember;
   final List<CustomerSummary> customerResults;
   final List<OutletSummary> outlets;
@@ -42,15 +43,16 @@ class PosState extends Equatable {
     this.allProducts = const [],
     this.filteredProducts = const [],
     this.cartItems = const [],
-    this.tableNumber = '04',
+    this.tableNumber = '-',
     this.orderType = 'Dine-in',
-    this.customerName = 'Dian P.',
+    this.customerName = 'Tamu',
     this.customerId,
-    this.isMember = true,
+    this.customerPhone,
+    this.isMember = false,
     this.customerResults = const [],
     this.outlets = const [],
     this.activeOutletId,
-    this.voucherDiscount = 10000,
+    this.voucherDiscount = 0,
     this.appliedVoucherCode,
     this.voucherError,
     this.parkedBills = const [],
@@ -80,6 +82,7 @@ class PosState extends Equatable {
     String? orderType,
     String? customerName,
     String? customerId,
+    String? customerPhone,
     bool clearCustomer = false,
     bool? isMember,
     List<CustomerSummary>? customerResults,
@@ -108,6 +111,8 @@ class PosState extends Equatable {
       orderType: orderType ?? this.orderType,
       customerName: customerName ?? this.customerName,
       customerId: clearCustomer ? null : (customerId ?? this.customerId),
+      customerPhone:
+          clearCustomer ? null : (customerPhone ?? this.customerPhone),
       isMember: isMember ?? this.isMember,
       customerResults: customerResults ?? this.customerResults,
       outlets: outlets ?? this.outlets,
@@ -138,6 +143,7 @@ class PosState extends Equatable {
     orderType,
     customerName,
     customerId,
+    customerPhone,
     isMember,
     customerResults,
     outlets,

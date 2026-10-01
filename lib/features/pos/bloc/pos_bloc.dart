@@ -91,48 +91,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       final categories = await posRepository.getCategories();
       final products = await posRepository.getProducts();
 
-      // Demo cart only when the bundled seed SKUs are present. With a real
-      // backend catalog these SKUs differ, so the cart starts empty instead of
-      // fabricating lines. ponytail: drop entirely once seed fallback is gone.
-      PosProduct? bySku(String sku) {
-        for (final p in products) {
-          if (p.sku == sku) return p;
-        }
-        return null;
-      }
-
-      final arenProd = bySku('KOP-AREN-01');
-      final croissantProd = bySku('PAS-ALM-01');
-      final americanoProd = bySku('KOP-AME-02');
-
-      final initialCart = <CartItem>[
-        if (arenProd != null)
-          CartItem(
-            id: 'cart-line-1',
-            product: arenProd,
-            quantity: 1,
-            selectedModifiers: const [
-              ModifierOption(id: 'sugar_50', name: 'Less Sugar 50%', priceDelta: 0),
-              ModifierOption(id: 'milk_oat', name: 'Oat Milk Barista', priceDelta: 6000),
-            ],
-          ),
-        if (croissantProd != null)
-          CartItem(
-            id: 'cart-line-2',
-            product: croissantProd,
-            quantity: 1,
-            notes: 'Hangatkan / Toasting',
-          ),
-        if (americanoProd != null)
-          CartItem(
-            id: 'cart-line-3',
-            product: americanoProd,
-            quantity: 1,
-            selectedModifiers: const [
-              ModifierOption(id: 'top_syrup', name: 'Syrup Hazelnut', priceDelta: 4000),
-            ],
-          ),
-      ];
+      // Cart starts empty; the cashier adds real items.
+      const initialCart = <CartItem>[];
 
       final totals = _recalculateTotals(initialCart, state.voucherDiscount);
       final parkedBills = await posRepository.fetchParkedBills();
@@ -309,6 +269,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     emit(state.copyWith(
       customerId: event.customer.id,
       customerName: event.customer.name,
+      customerPhone: event.customer.phone,
       isMember: true,
     ));
   }
