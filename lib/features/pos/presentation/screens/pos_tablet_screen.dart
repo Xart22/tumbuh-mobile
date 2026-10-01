@@ -176,6 +176,53 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
     );
   }
 
+  String _activeOutletName(PosState state) {
+    for (final o in state.outlets) {
+      if (o.id == state.activeOutletId) return o.name;
+    }
+    return 'Kopi Kita - Cabang Tebet';
+  }
+
+  void _promptSwitchOutlet(PosState state) {
+    if (state.outlets.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hanya satu outlet tersedia.'),
+          backgroundColor: LpColors.textMuted,
+        ),
+      );
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: LpColors.surfaceCard,
+        title: const Text('Pilih Outlet', style: TextStyle(color: Colors.white)),
+        children: state.outlets
+            .map((o) => SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    context.read<PosBloc>().add(PosSwitchOutlet(o.id));
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        o.id == state.activeOutletId
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 18,
+                        color: LpColors.primaryLight,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(o.name, style: const TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ))
+            .toList(),
+      ),
+    );
+  }
+
   void _showParkedBillsSheet(BuildContext context, PosState state) {
     showModalBottomSheet(
       context: context,
@@ -379,10 +426,22 @@ class _PosTabletScreenState extends State<PosTabletScreen> {
                           ),
                           const SizedBox(width: 6),
                           Flexible(
-                            child: Text(
-                              'Kopi Kita - Cabang Tebet',
-                              style: LpTypography.bodySm.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
+                            child: GestureDetector(
+                              onTap: () => _promptSwitchOutlet(state),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      _activeOutletName(state),
+                                      style: LpTypography.bodySm.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.expand_more_rounded, size: 16, color: LpColors.textSecondary),
+                                ],
+                              ),
                             ),
                           ),
                         ],

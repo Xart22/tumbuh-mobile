@@ -14,6 +14,7 @@ import '../local/outbox/outbox_dao.dart';
 import '../models/cart_item.dart';
 import '../models/customer_summary.dart';
 import '../models/outlet_pricing.dart';
+import '../models/outlet_summary.dart';
 import '../models/payment_model.dart';
 import '../models/pos_product.dart';
 import '../models/printer_config.dart';
@@ -62,6 +63,32 @@ class PosRepository {
     this.storage,
     this.fetchFromNetwork = true,
   });
+
+  /// Outlets the current user can use. Backend: `GET /v1/outlets`.
+  Future<List<OutletSummary>> fetchOutlets() async {
+    if (!fetchFromNetwork) return const [];
+    try {
+      final res = await apiClient.getWithRetry('/v1/outlets');
+      final list = (res.data as List<dynamic>).cast<Map<String, dynamic>>();
+      return list.map(OutletSummary.fromJson).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<String?> getActiveOutletId() => storage?.getActiveOutletId() ?? Future.value(null);
+
+  /// Switches the active outlet (X-Outlet-Id) and refreshes its pricing cache.
+  Future<void> switchOutlet(String outletId) async {
+    await storage?.saveActiveOutletId(outletId);
+    try {
+      final res = await apiClient.getWithRetry('/v1/outlets/$outletId');
+      final pricing = OutletPricing.fromOutletJson(_asMap(res.data));
+      await storage?.saveOutletPricing(jsonEncode(pricing.toJson()));
+    } catch (_) {
+      // Keep previous pricing; PosLoadMenu will retry.
+    }
+  }
 
   /// Cached outlet pricing (tax/service/rounding), or null when unavailable.
   Future<OutletPricing?> getOutletPricing() async {

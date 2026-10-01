@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import '../../../data/models/cart_item.dart';
 import '../../../data/models/customer_summary.dart';
+import '../../../data/models/outlet_summary.dart';
 import '../../../data/models/pos_product.dart';
 import '../../../data/models/printer_config.dart';
 import '../../../data/remote/pos_repository.dart';
@@ -22,6 +23,8 @@ class PosState extends Equatable {
   final String? customerId;
   final bool isMember;
   final List<CustomerSummary> customerResults;
+  final List<OutletSummary> outlets;
+  final String? activeOutletId;
   final int voucherDiscount;
   final String? appliedVoucherCode;
   final String? voucherError;
@@ -45,6 +48,8 @@ class PosState extends Equatable {
     this.customerId,
     this.isMember = true,
     this.customerResults = const [],
+    this.outlets = const [],
+    this.activeOutletId,
     this.voucherDiscount = 10000,
     this.appliedVoucherCode,
     this.voucherError,
@@ -78,6 +83,8 @@ class PosState extends Equatable {
     bool clearCustomer = false,
     bool? isMember,
     List<CustomerSummary>? customerResults,
+    List<OutletSummary>? outlets,
+    String? activeOutletId,
     int? voucherDiscount,
     String? appliedVoucherCode,
     bool clearVoucher = false,
@@ -103,6 +110,8 @@ class PosState extends Equatable {
       customerId: clearCustomer ? null : (customerId ?? this.customerId),
       isMember: isMember ?? this.isMember,
       customerResults: customerResults ?? this.customerResults,
+      outlets: outlets ?? this.outlets,
+      activeOutletId: activeOutletId ?? this.activeOutletId,
       voucherDiscount: voucherDiscount ?? this.voucherDiscount,
       appliedVoucherCode:
           clearVoucher ? null : (appliedVoucherCode ?? this.appliedVoucherCode),
@@ -131,6 +140,8 @@ class PosState extends Equatable {
     customerId,
     isMember,
     customerResults,
+    outlets,
+    activeOutletId,
     voucherDiscount,
     appliedVoucherCode,
     voucherError,

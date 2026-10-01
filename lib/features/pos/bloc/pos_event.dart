@@ -74,6 +74,14 @@ class PosSessionReset extends PosEvent {
   const PosSessionReset();
 }
 
+class PosSwitchOutlet extends PosEvent {
+  final String outletId;
+  const PosSwitchOutlet(this.outletId);
+
+  @override
+  List<Object?> get props => [outletId];
+}
+
 class PosSetTableNumber extends PosEvent {
   final String tableNumber;
   const PosSetTableNumber(this.tableNumber);

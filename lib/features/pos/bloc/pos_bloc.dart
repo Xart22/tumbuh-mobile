@@ -25,6 +25,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
     on<PosRemoveCartItem>(_onRemoveCartItem);
     on<PosClearCart>(_onClearCart);
     on<PosSessionReset>(_onSessionReset);
+    on<PosSwitchOutlet>(_onSwitchOutlet);
     on<PosSetTableNumber>(_onSetTableNumber);
     on<PosSetOrderType>(_onSetOrderType);
     on<PosSetCustomer>(_onSetCustomer);
@@ -126,6 +127,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
 
       final totals = _recalculateTotals(initialCart, state.voucherDiscount);
       final parkedBills = await posRepository.fetchParkedBills();
+      final outlets = await posRepository.fetchOutlets();
+      final activeOutletId = await posRepository.getActiveOutletId() ??
+          (outlets.isNotEmpty ? outlets.first.id : null);
 
       emit(state.copyWith(
         status: PosStatus.ready,
@@ -134,6 +138,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         filteredProducts: products,
         cartItems: initialCart,
         parkedBills: parkedBills,
+        outlets: outlets,
+        activeOutletId: activeOutletId,
         totals: totals,
       ));
     } catch (e) {
@@ -237,6 +243,12 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   void _onClearCart(PosClearCart event, Emitter<PosState> emit) {
     final totals = _recalculateTotals(const [], 0);
     emit(state.copyWith(cartItems: const [], voucherDiscount: 0, totals: totals));
+  }
+
+  Future<void> _onSwitchOutlet(PosSwitchOutlet event, Emitter<PosState> emit) async {
+    await posRepository.switchOutlet(event.outletId);
+    emit(state.copyWith(activeOutletId: event.outletId));
+    add(const PosLoadMenu());
   }
 
   void _onSessionReset(PosSessionReset event, Emitter<PosState> emit) {
