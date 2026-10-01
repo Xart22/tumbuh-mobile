@@ -42,6 +42,12 @@ class OrdersRepository {
         options: _idempotent(),
       );
 
+  /// Settle a credit (piutang) order. Backend: `POST /v1/orders/:id/credit-settle`.
+  Future<void> settleCredit(String id) => apiClient.dio.post(
+        '/v1/orders/$id/credit-settle',
+        options: _idempotent(),
+      );
+
   static Options _idempotent() =>
       Options(headers: {'Idempotency-Key': const Uuid().v4()});
 }

@@ -227,6 +227,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     icon: const Icon(Icons.print_rounded, color: LpColors.primaryLight),
                     label: const Text('Cetak Ulang'),
                   ),
+                  if (order.paymentStatus == 'credit')
+                    TextButton.icon(
+                      onPressed: () => _settleCredit(ctx, order.id),
+                      icon: const Icon(Icons.price_check_rounded, color: LpColors.accentAmber),
+                      label: const Text('Pelunasan'),
+                    ),
                   TextButton.icon(
                     onPressed: () => _voidOrder(ctx, order.id),
                     icon: const Icon(Icons.delete_forever_rounded, color: LpColors.critical),
@@ -264,6 +270,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _load();
     } catch (e) {
       _snack('Gagal void item: $e');
+    }
+  }
+
+  Future<void> _settleCredit(BuildContext ctx, String orderId) async {
+    final navigator = Navigator.of(ctx);
+    try {
+      await _repository!.settleCredit(orderId);
+      navigator.pop();
+      _load();
+      _snackOk('Piutang berhasil dilunasi.');
+    } catch (e) {
+      _snack('Gagal pelunasan: $e');
     }
   }
 
@@ -317,6 +335,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: LpColors.critical),
+    );
+  }
+
+  void _snackOk(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: LpColors.primary),
     );
   }
 }

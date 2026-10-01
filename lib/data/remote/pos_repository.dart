@@ -320,6 +320,10 @@ class PosRepository {
       case PosPaymentMethod.transfer:
         // Backend has no bank-transfer method yet; treat as immediate non-cash.
         return 'debit';
+      case PosPaymentMethod.deposit:
+        return 'deposit';
+      case PosPaymentMethod.credit:
+        return 'credit';
     }
   }
 

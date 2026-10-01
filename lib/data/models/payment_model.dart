@@ -4,7 +4,9 @@ enum PosPaymentMethod {
   cash,
   qris,
   debit,
-  transfer;
+  transfer,
+  deposit,
+  credit;
 
   String get label {
     switch (this) {
@@ -16,6 +18,10 @@ enum PosPaymentMethod {
         return 'Debit / EDC';
       case PosPaymentMethod.transfer:
         return 'Transfer Bank';
+      case PosPaymentMethod.deposit:
+        return 'Deposit Saldo';
+      case PosPaymentMethod.credit:
+        return 'Piutang (Kredit)';
     }
   }
 
@@ -29,6 +35,10 @@ enum PosPaymentMethod {
         return '💳';
       case PosPaymentMethod.transfer:
         return '🏦';
+      case PosPaymentMethod.deposit:
+        return '👛';
+      case PosPaymentMethod.credit:
+        return '📝';
     }
   }
 }
