@@ -21,9 +21,7 @@ class ShiftScreen extends StatefulWidget {
 }
 
 class _ShiftScreenState extends State<ShiftScreen> {
-  final TextEditingController _notesController = TextEditingController(
-    text: 'Semua transaksi tunai dan QRIS telah sinkron ke cloud. Laci kas rapi, roll kertas printer cadangan 3 roll terisi.',
-  );
+  final TextEditingController _notesController = TextEditingController();
   final TextEditingController _varianceReasonController = TextEditingController();
   final TextEditingController _floatController = TextEditingController(text: '500000');
 
